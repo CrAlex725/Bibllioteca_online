@@ -7,13 +7,15 @@ class Usuario(db.Model):
     rut = db.Column(db.String(12), unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(35), nullable=False)
-    username = db.Column(db.String(20), nullable=False)
+    username = db.Column(db.String(20), nullable=False, unique=True)
     phone = db.Column(db.String(15))
-    email = db.Column(db.String(60), nullable=False)
+    email = db.Column(db.String(60), nullable=False, unique=True)
     address = db.Column(db.String(70))
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False) #fecha servidor de Postgres
     
     asignaciones = db.relationship('Asignacion', back_populates='usuario')
+    
+    ejemplares_creados = db.relationship('Ejemplar', back_populates='creador')
     
     def __repr__(self):
         return f'<Usuario {self.username}>'
@@ -39,6 +41,8 @@ class Biblioteca(db.Model):
     email = db.Column(db.String(80), nullable=False)
     
     asignaciones = db.relationship('Asignacion', back_populates='biblioteca')
+    
+    ejemplares = db.relationship('Ejemplar', back_populates='biblioteca')
     
     def __repr__(self):
         return f'<Biblioteca {self.name}>'
@@ -84,6 +88,8 @@ class Libro(db.Model):
     
     autores = db.relationship('Autor', secondary=libro_autor, back_populates='libros')
     
+    ejemplares = db.relationship('Ejemplar', back_populates='libro')
+    
     def __repr__(self):
         return f'<Libro {self.isbn}>'
     
@@ -108,3 +114,41 @@ class Autor(db.Model):
     
     def __repr__(self):
         return f'<Autor {self.nombre}>'
+    
+class Estado(db.Model):
+    __tablename__ = 'estados'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(20), nullable=False)
+    
+    ejemplares = db.relationship('Ejemplar', back_populates='estado')
+    
+    def __repr__(self):
+        return f'<Estado: {self.nombre}>'
+
+class Ejemplar(db.Model):
+    __tablename__ = 'ejemplares'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    libro_id = db.Column(db.Integer, db.ForeignKey('libros.id'), nullable=False)
+    estado_id = db.Column(db.Integer, db.ForeignKey('estados.id'), nullable=False)
+    biblioteca_id = db.Column(db.Integer, db.ForeignKey('bibliotecas.id'), nullable=False)
+    signatura = db.Column(db.String(100))
+    numero_ejemplar = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default = db.func.current_timestamp(), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    
+    __table_args__ = (
+        db.UniqueConstraint('libro_id', 'numero_ejemplar', name='uq_libro_numero_ejemplar'),
+    )
+    
+    estado = db.relationship('Estado', back_populates='ejemplares')
+    
+    libro = db.relationship('Libro', back_populates='ejemplares')
+    
+    creador = db.relationship('Usuario', back_populates='ejemplares_creados')
+    
+    biblioteca = db.relationship('Biblioteca', back_populates='ejemplares')
+    
+    def __repr__(self):
+        return f'<Ejemplar libro={self.libro_id} num={self.numero_ejemplar}>'
+    
