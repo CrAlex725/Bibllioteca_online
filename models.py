@@ -63,18 +63,26 @@ class Asignacion(db.Model):
     def __repr__(self):
         return f'<Asignacion u={self.usuario_id} r={self.rol_id} b={self.biblioteca_id}>'
     
+libro_autor = db.Table(
+    'libro_autor',
+    db.Column('libro_id', db.Integer, db.ForeignKey('libros.id'), primary_key=True),
+    db.Column('autor_id', db.Integer, db.ForeignKey('autores.id'), primary_key=True),
+)
+
 class Libro(db.Model):
     __tablename__ = 'libros'
     
     id = db.Column(db.Integer, primary_key=True)
     isbn = db.Column(db.String(20), unique=True, nullable=False) 
     title = db.Column(db.String(200), nullable=False)
-    year = db.Column(db.Integer)
+    year_publication = db.Column(db.Integer)
     clasificacion = db.Column(db.String(100))
     created_at =db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     
     editorial_id = db.Column(db.Integer, db.ForeignKey('editoriales.id'), nullable=False)
-    editorial = db.relationship('Editorial', back_populates='books')
+    editorial = db.relationship('Editorial', back_populates='libros')
+    
+    autores = db.relationship('Autor', secondary=libro_autor, back_populates='libros')
     
     def __repr__(self):
         return f'<Libro {self.isbn}>'
@@ -85,6 +93,18 @@ class Editorial(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(80), nullable=False)
     
-    books = db.relationship('Libro', back_populates='editorial')
+    libros = db.relationship('Libro', back_populates='editorial')
     
+    def __repr__(self):
+        return f'<Editorial {self.nombre}>'
+
+class Autor(db.Model):
+    __tablename__ = 'autores'
     
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(150), unique=True, nullable=False)
+    
+    libros = db.relationship('Libro', secondary=libro_autor, back_populates='autores')
+    
+    def __repr__(self):
+        return f'<Autor {self.nombre}>'
