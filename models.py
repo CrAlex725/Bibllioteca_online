@@ -62,3 +62,29 @@ class Asignacion(db.Model):
     
     def __repr__(self):
         return f'<Asignacion u={self.usuario_id} r={self.rol_id} b={self.biblioteca_id}>'
+    
+class Libro(db.Model):
+    __tablename__ = 'libros'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    isbn = db.Column(db.String(20), unique=True, nullable=False) 
+    title = db.Column(db.String(200), nullable=False)
+    year = db.Column(db.Integer)
+    clasificacion = db.Column(db.String(100))
+    created_at =db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    
+    editorial_id = db.Column(db.Integer, db.ForeignKey('editoriales.id'), nullable=False)
+    editorial = db.relationship('Editorial', back_populates='books')
+    
+    def __repr__(self):
+        return f'<Libro {self.isbn}>'
+    
+class Editorial(db.Model):
+    __tablename__ = 'editoriales'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(80), nullable=False)
+    
+    books = db.relationship('Libro', back_populates='editorial')
+    
+    
