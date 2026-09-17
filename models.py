@@ -1,4 +1,5 @@
 from extensions import db
+from werkzeug.security import generate_password_hash
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -19,6 +20,9 @@ class Usuario(db.Model):
     
     def __repr__(self):
         return f'<Usuario {self.username}>'
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
     
 class Rol(db.Model):
     __tablename__ = 'roles'
