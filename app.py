@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from flask_migrate import Migrate
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 from models import (Usuario)
 from extensions import db, jwt
@@ -74,10 +74,20 @@ def login():
     if not usuario or not usuario.check_password(password):
         return jsonify({"error":"El Usuario o la contraseña Son incorrectos"}), 401
     
-    token = create_access_token(identity=usuario.id)
+    token = create_access_token(identity=str(usuario.id))
     
     return jsonify({"token": token}), 200
         
-
+@app.route('/auth/profile', methods=['GET'])
+@jwt_required()
+def profile():
+    user_id = get_jwt_identity()
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No está Autorizado"}), 404
+    
+    return jsonify(usuario.to_dict()), 200
+    
 if __name__ == '__main__':
     app.run(debug=True)

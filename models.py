@@ -26,6 +26,18 @@ class Usuario(db.Model):
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            "id" : self.id,
+            "rut": self.rut,
+            "name": self.name,
+            "user_name": self.username,
+            "phone": self.phone,
+            "email": self.email,
+            "address": self.address,
+            "created_at": self.created_at.isoformat()
+        }
         
 class Rol(db.Model):
     __tablename__ = 'roles'
