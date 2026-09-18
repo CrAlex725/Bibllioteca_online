@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from flask_migrate import Migrate
+from flask_jwt_extended import create_access_token
 
 from models import (Usuario)
 from extensions import db, jwt
@@ -55,5 +56,28 @@ def register():
     
     return jsonify({"status":f"El usuario {name}, con id {nuevo_usuario.id} Se creó Correctamente"}), 201
     
+@app.route('/auth/login', methods=['POST'])
+def login():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"No se han proporcionado los datos Necesarios"}), 400
+    
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"error":"El Correo y la contraseña deben completarse"}), 400
+    
+    # si encuentro el correo
+    usuario =  Usuario.query.filter_by(email=email).first()
+    if not usuario or not usuario.check_password(password):
+        return jsonify({"error":"El Usuario o la contraseña Son incorrectos"}), 401
+    
+    token = create_access_token(identity=usuario.id)
+    
+    return jsonify({"token": token}), 200
+        
+
 if __name__ == '__main__':
     app.run(debug=True)
