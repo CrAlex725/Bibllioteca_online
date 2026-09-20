@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
-from models import (Usuario)
+from models import (Usuario,Libro)
 from extensions import db, jwt
 
 load_dotenv()
@@ -89,5 +89,11 @@ def profile():
     
     return jsonify(usuario.to_dict()), 200
     
+@app.route('/books', methods=['GET'])
+def libros():
+    libros = Libro.query.all()
+    result = [libro.to_summary() for libro in libros]
+    return jsonify(result), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
