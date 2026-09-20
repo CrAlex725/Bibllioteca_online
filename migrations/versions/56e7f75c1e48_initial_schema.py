@@ -1,8 +1,8 @@
-"""Esquema inicial de la db con los modelos de: Usuario, Rol, Biblioteca, Asignacion, Libro, Editorial, Autor, Estado, Ejemplar y la tabla intermedia libro_autor
+"""initial schema
 
-Revision ID: 9bc8215d841e
+Revision ID: 56e7f75c1e48
 Revises: 
-Create Date: 2026-09-14 20:01:59.496806
+Create Date: 2026-09-19 23:45:11.190214
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9bc8215d841e'
+revision = '56e7f75c1e48'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -58,6 +58,7 @@ def upgrade():
     sa.Column('email', sa.String(length=60), nullable=False),
     sa.Column('address', sa.String(length=70), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('is_admin', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('rut'),

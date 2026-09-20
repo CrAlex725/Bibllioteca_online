@@ -13,6 +13,7 @@ class Usuario(db.Model):
     email = db.Column(db.String(60), nullable=False, unique=True)
     address = db.Column(db.String(70))
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False) #fecha servidor de Postgres
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
     asignaciones = db.relationship('Asignacion', back_populates='usuario')
     
@@ -111,6 +112,17 @@ class Libro(db.Model):
     
     def __repr__(self):
         return f'<Libro {self.isbn}>'
+    
+    def to_summary(self):
+        return{
+            "id": self.id,
+            "isbn": self.isbn,
+            "title" : self.title,
+            "year_publication": self.year_publication,
+            "clasificacion" : self.clasificacion,
+            "editorial": self.editorial.nombre,
+            "autores": [{"id":a.id, "nombre":a.nombre} for a in self.autores]
+        }
     
 class Editorial(db.Model):
     __tablename__ = 'editoriales'
