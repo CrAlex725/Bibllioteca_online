@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 from models import (Usuario,Libro)
+from helpers import normalizar_isbn
 from extensions import db, jwt
 
 load_dotenv()
@@ -94,6 +95,19 @@ def libros():
     libros = Libro.query.all()
     result = [libro.to_summary() for libro in libros]
     return jsonify(result), 200
+
+@app.route('/books/<string:isbn>', methods=['GET'])
+@jwt_required(optional=True)
+def libro_detalle(isbn):
+    isbn_normalizado = normalizar_isbn(isbn)
+    libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
+    if not libro:
+        return jsonify({"error":"libro No encontrado"}), 404
+    
+    if get_jwt_identity():
+        return jsonify(libro.to_dict()), 200
+
+    return jsonify(libro.to_summary()),200
 
 if __name__ == '__main__':
     app.run(debug=True)
