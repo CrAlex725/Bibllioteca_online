@@ -133,7 +133,7 @@ with app.app_context():
     # ---------- 10 Libros ----------
     libros_data = [
         {
-            "isbn": "978-0307474728",
+            "isbn": "9780307474728",
             "title": "Cien años de soledad",
             "year_publication": 1967,
             "clasificacion": "Novela",
@@ -141,7 +141,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-0060883287",
+            "isbn": "9780060883287",
             "title": "La casa de los espíritus",
             "year_publication": 1982,
             "clasificacion": "Novela",
@@ -149,7 +149,7 @@ with app.app_context():
             "autores": [autores[1]],
         },
         {
-            "isbn": "978-8437604947",
+            "isbn": "9788437604947",
             "title": "Crónica de una muerte anunciada",
             "year_publication": 1981,
             "clasificacion": "Novela",
@@ -157,7 +157,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-8401242364",
+            "isbn": "9788401242364",
             "title": "El amor en los tiempos del cólera",
             "year_publication": 1985,
             "clasificacion": "Novela",
@@ -165,7 +165,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-9507311192",
+            "isbn": "9789507311192",
             "title": "Eva Luna",
             "year_publication": 1987,
             "clasificacion": "Novela",
@@ -173,7 +173,7 @@ with app.app_context():
             "autores": [autores[1]],
         },
         {
-            "isbn": "978-0307389732",
+            "isbn": "9780307389732",
             "title": "El otoño del patriarca",
             "year_publication": 1975,
             "clasificacion": "Novela",
@@ -181,7 +181,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-0061120092",
+            "isbn": "9780061120092",
             "title": "Paula",
             "year_publication": 1994,
             "clasificacion": "Memorias",
@@ -189,7 +189,7 @@ with app.app_context():
             "autores": [autores[1]],
         },
         {
-            "isbn": "978-8437604978",
+            "isbn": "9788437604978",
             "title": "Relato de un náufrago",
             "year_publication": 1970,
             "clasificacion": "Crónica",
@@ -197,7 +197,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-8401352356",
+            "isbn": "9788401352356",
             "title": "La ciudad y los perros",
             "year_publication": 1963,
             "clasificacion": "Novela",
@@ -205,7 +205,7 @@ with app.app_context():
             "autores": [autores[0]],
         },
         {
-            "isbn": "978-9507311208",
+            "isbn": "9789507311208",
             "title": "De amor y de sombra",
             "year_publication": 1984,
             "clasificacion": "Novela",
