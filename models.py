@@ -110,19 +110,33 @@ class Libro(db.Model):
     
     ejemplares = db.relationship('Ejemplar', back_populates='libro')
     
-    def __repr__(self):
-        return f'<Libro {self.isbn}>'
-    
     def to_summary(self):
         return{
-            "id": self.id,
             "isbn": self.isbn,
             "title" : self.title,
             "year_publication": self.year_publication,
-            "clasificacion" : self.clasificacion,
-            "editorial": self.editorial.nombre,
             "autores": [{"id":a.id, "nombre":a.nombre} for a in self.autores]
         }
+        
+    def to_dict(self):
+        return {
+        "isbn": self.isbn,
+        "title": self.title,
+        "year_publication": self.year_publication,
+        "clasificacion": self.clasificacion,
+        "editorial": {
+            "id": self.editorial.id,
+            "nombre": self.editorial.nombre
+        },
+        "autores": [
+            {"id": autor.id, "nombre": autor.nombre}
+            for autor in self.autores
+        ],
+        "created_at": self.created_at.isoformat()
+    }
+
+    def __repr__(self):
+        return f'<Libro {self.isbn}>'
     
 class Editorial(db.Model):
     __tablename__ = 'editoriales'
