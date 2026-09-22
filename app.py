@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
-from models import (Usuario,Libro)
+from models import (Usuario,Libro, Editorial, Autor)
 from helpers import normalizar_isbn
 from extensions import db, jwt
 
@@ -92,9 +92,37 @@ def profile():
     
 @app.route('/books', methods=['GET'])
 def libros():
-    libros = Libro.query.all()
-    result = [libro.to_summary() for libro in libros]
-    return jsonify(result), 200
+    titulo = request.args.get('Titulo')
+    autor = request.args.get('Autor')
+    editorial = request.args.get('Editorial')
+    categoria = request.args.get('Categoria')
+    anio = request.args.get('Year')
+    
+    query = Libro.query
+    
+    if titulo:
+        query = query.filter(Libro.title.ilike(f'%{titulo}%'))
+    
+    if editorial:
+        query = query.join(Libro.editorial).filter(
+            Editorial.nombre.ilike(f'%{editorial}%'))
+    
+    if autor:
+        query = query.filter(Libro.autores.any(
+            Autor.nombre.ilike(f'%{autor}%')))
+    
+    if categoria:
+        query = query.filter(Libro.clasificacion.ilike(f'%{categoria}%'))
+        
+    if anio:
+        try:
+            query = query.filter(Libro.year_publication == int(anio))
+            
+        except ValueError:
+            return jsonify({'error':'Year Debe ser Numerico'}), 400
+    
+    libros = query.all()
+    return jsonify([l.to_summary() for l in libros]), 200
 
 @app.route('/books/<string:isbn>', methods=['GET'])
 @jwt_required(optional=True)
