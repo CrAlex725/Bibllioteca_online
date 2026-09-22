@@ -49,7 +49,7 @@ def register():
     if Usuario.query.filter_by(username=username).first():
         return jsonify({"error":"El Usuario No está Disponible"}), 409
     
-    nuevo_usuario = Usuario(rut=None,name=name, username=username,phone=None,email=email,address=None)
+    nuevo_usuario = Usuario(name=name, username=username,email=email)
     nuevo_usuario.set_password(password)
     
     db.session.add(nuevo_usuario)
