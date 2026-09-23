@@ -39,6 +39,18 @@ class Usuario(db.Model):
             "address": self.address,
             "created_at": self.created_at.isoformat()
         }
+    
+    def es_admin(self):
+        return self.is_admin
+    
+    def es_bibliotecario(self):
+        for asignacion in self.asignaciones:
+            if asignacion.rol.name.lower() in ["bibliotecario", "asistente"]:
+                return True
+        return False
+    
+    def puede_crear_libros(self):
+        return self.es_admin() or self.es_bibliotecario()
         
 class Rol(db.Model):
     __tablename__ = 'roles'
