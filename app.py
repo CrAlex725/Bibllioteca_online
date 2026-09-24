@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from sqlalchemy.exc import IntegrityError
 
 from models import (Usuario,Libro, Editorial, Autor)
 from helpers import normalizar_isbn
@@ -82,7 +83,7 @@ def login():
 @app.route('/auth/profile', methods=['GET'])
 @jwt_required()
 def profile():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
     if not usuario:
@@ -123,6 +124,90 @@ def libros():
     
     libros = query.all()
     return jsonify([l.to_summary() for l in libros]), 200
+
+@app.route('/books', methods=['POST'])
+@jwt_required()
+def crear_libro():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+
+    isbn = data.get('isbn')
+    title = data.get('title')
+    editorial = data.get('editorial')
+    autores = data.get('autores')
+    
+    if not isinstance(autores, list):
+        return jsonify({"error":"autores debe ser una lista"}), 400
+    
+    if not isbn or not title or not editorial or not autores:
+        return jsonify({"error":"Todos los campos mencionados son obligatorios"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario no existe"}), 401
+    
+    if not usuario.puede_crear_libros():
+        return  jsonify({"error":"El Usuario No tiene Permiso para agregar Libros"}), 403
+    
+    isbn_normalizado = normalizar_isbn(isbn)
+    
+    if Libro.query.filter_by(isbn=isbn_normalizado).first():
+        return jsonify({"error":f"El Libro con isbn: {isbn}, Ya existe"}), 409
+    
+    try:
+        editoriall = Editorial.query.filter(
+            db.func.lower(Editorial.nombre) == db.func.lower(editorial)
+        ).first()
+
+        if not editoriall:
+            editoriall = Editorial(nombre=editorial)
+            db.session.add(editoriall)
+            db.session.flush()
+
+        autores_obj = []
+        nombres_procesados = set()
+        
+        for nombre in autores:
+            if not nombre or nombre.strip() == "":
+                continue
+            
+            clave = nombre.lower().strip()
+            if clave in nombres_procesados:
+                continue
+            
+            nombres_procesados.add(clave)
+            
+            autor = Autor.query.filter(
+                db.func.lower(Autor.nombre) == db.func.lower(nombre)
+            ).first()
+            
+            if not autor:
+                autor = Autor(nombre=nombre.strip())
+                db.session.add(autor)
+                db.session.flush()
+            
+            autores_obj.append(autor)
+            
+        libro = Libro(
+            isbn =isbn_normalizado,
+            title=title,
+            year_publication=data.get('year'),
+            clasificacion=data.get('clasificacion'),
+            editorial_id=editoriall.id
+        )
+        libro.autores = autores_obj
+        
+        db.session.add(libro)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió mal en la creación del libro"}), 409
+    
+    return jsonify(libro.to_dict()), 201
 
 @app.route('/books/<string:isbn>', methods=['GET'])
 @jwt_required(optional=True)
