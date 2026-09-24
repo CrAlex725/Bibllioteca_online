@@ -222,5 +222,58 @@ def libro_detalle(isbn):
 
     return jsonify(libro.to_summary()),200
 
+@app.route('/books/<string:isbn>', methods=['PUT'])
+@jwt_required()
+def actualizar_libro(isbn):
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+    
+    isbn_normalizado = normalizar_isbn(isbn)
+    libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
+    
+    if not libro:
+        return jsonify({"error":f"El libro con isbn: {isbn} NO existe"}),404
+    
+    if 'title' in data:
+        libro.title = data['title']
+    
+    if 'year_publication' in data:
+        libro.year_publication = data['year_publication']
+        
+    if 'clasificacion' in data:
+        libro.clasificacion = data['clasificacion']
+    
+    if 'editorial_id' in data:
+        editorial = Editorial.query.filter_by(id=data['editorial_id']).first()
+        if not editorial:
+            return jsonify({"error":"Editorial No existe"}), 400
+        libro.editorial_id = editorial.id
+        
+    if 'autor_ids' in data:
+        if not isinstance(data['autor_ids'], list):
+            return jsonify({"error":"aitor_ids debe ser una lista"}), 400
+        
+        autores_obj = []
+        for autor_id in data['autor_ids']:
+            autor = Autor.query.filter_by(id=autor_id).first()
+            if not autor:
+                return jsonify({"error":"El Autor NO Existe"}), 400
+            autores_obj.append(autor)
+        libro.autores = autores_obj
+    
+    db.session.commit()
+    return jsonify(libro.to_dict()), 200
+    
 if __name__ == '__main__':
     app.run(debug=True)
