@@ -15,6 +15,7 @@ class Usuario(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False) #fecha servidor de Postgres
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
+    bibliotecas_creadas = db.relationship('Biblioteca', back_populates='creador')
     asignaciones = db.relationship('Asignacion', back_populates='usuario')
     
     ejemplares_creados = db.relationship('Ejemplar', back_populates='creador')
@@ -71,10 +72,27 @@ class Biblioteca(db.Model):
     address = db.Column(db.String(300), nullable=False)
     phone = db.Column(db.String(15), nullable=False)
     email = db.Column(db.String(80), nullable=False)
+    is_public = db.Column(db.Boolean, default=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    creador = db.relationship('Usuario', back_populates='bibliotecas_creadas')
     
     asignaciones = db.relationship('Asignacion', back_populates='biblioteca')
     
     ejemplares = db.relationship('Ejemplar', back_populates='biblioteca')
+    
+    def to_dict(self):
+        return{
+            "id": self.id,
+            "biblioteca": self.name,
+            "direccion": self.address,
+            "telefono": self.phone,
+            "correo": self.email,
+            "estado_activo": self.is_active,
+            "es_publica":self.is_public,
+            "creado_por": self.creador.name if self.creador else None
+        }
     
     def __repr__(self):
         return f'<Biblioteca {self.name}>'
@@ -87,6 +105,7 @@ class Asignacion(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     rol_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     biblioteca_id = db.Column(db.Integer, db.ForeignKey('bibliotecas.id'), nullable=False)
+    is_owner = db.Column(db.Boolean, default=False, nullable=False)
     
     __table_args__ = (
         db.UniqueConstraint('usuario_id', 'biblioteca_id', name='uq_usuario_biblioteca'),
