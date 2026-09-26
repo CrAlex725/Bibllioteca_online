@@ -8,6 +8,7 @@ from extensions import db, jwt
 from routes.auth import auth_bp
 from routes.books import books_bp
 from routes.health import health_bp
+from routes.libraries import libraries_bp
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ jwt.init_app(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(books_bp)
 app.register_blueprint(health_bp)
+app.register_blueprint(libraries_bp)
     
 if __name__ == '__main__':
     app.run(debug=True)
