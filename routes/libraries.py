@@ -148,3 +148,27 @@ def actualizar_biblioteca(id):
     return jsonify (biblioteca.to_dict()), 200
 
 # DELETE /bibliotecas/<id> → solo admin.
+@libraries_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_biblioteca(id):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    biblioteca = Biblioteca.query.filter_by(id=id).first()
+    
+    if not biblioteca:
+        return jsonify({"error":f"La biblioteca NO existe"}), 404
+    
+    if not biblioteca.is_active:
+        return jsonify({"error":"La biblioteca NO existe"}), 404
+
+    if not (usuario.es_admin() or usuario.es_jefe_de(id)):
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+
+    biblioteca.is_active = False
+    
+    db.session.commit()
+    return "", 204
