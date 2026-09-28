@@ -108,6 +108,43 @@ def crear_biblioteca():
         return jsonify({"error":"Algo Salió mal durante el proceso de creacion de la biblioteca"}), 500
     
     return jsonify(biblioteca.to_dict()), 201
+
 # PUT /bibliotecas/<id> → solo admin.
+@libraries_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def actualizar_biblioteca(id):
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id= int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario no existe"}), 401
+    
+    biblioteca = Biblioteca.query.filter_by(id=id).first()
+    
+    if not biblioteca:
+        return jsonify({"error":"La biblioteca NO existe"}), 404
+    
+    if not (usuario.es_admin() or usuario.es_jefe_de(biblioteca.id)):
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+    
+    if 'name' in data:
+        biblioteca.name = data['name']
+    
+    if 'address' in data:
+        biblioteca.address = data['address']
+        
+    if 'phone' in data:
+        biblioteca.phone = data['phone']
+    
+    if 'is_public' in data:
+        biblioteca.is_public = data['is_public']
+        
+    db.session.commit()
+    return jsonify (biblioteca.to_dict()), 200
 
 # DELETE /bibliotecas/<id> → solo admin.

@@ -57,6 +57,12 @@ class Usuario(db.Model):
         if not self.rut or not self.phone or not self.address:
             return False
         return True
+    
+    def es_jefe_de(self, biblioteca_id):
+        for asignacion in self.asignaciones:
+            if asignacion.biblioteca_id == biblioteca_id and asignacion.is_owner:
+                return True
+        return False
 
 class Rol(db.Model):
     __tablename__ = 'roles'
