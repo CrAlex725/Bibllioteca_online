@@ -172,3 +172,18 @@ def eliminar_biblioteca(id):
     
     db.session.commit()
     return "", 204
+
+@libraries_bp.route('/mine', methods=['GET'])
+@jwt_required()
+def mis_bibliotecas():
+    user_id= int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    lista = []
+    for asignacion in usuario.asignaciones:
+        lista.append(asignacion.biblioteca.to_dict())
+    
+    return jsonify(lista), 200
