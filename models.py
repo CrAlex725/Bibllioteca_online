@@ -52,7 +52,12 @@ class Usuario(db.Model):
     
     def puede_crear_libros(self):
         return self.es_admin() or self.es_bibliotecario()
-        
+    
+    def perfil_completo(self):
+        if not self.rut or not self.phone or not self.address:
+            return False
+        return True
+
 class Rol(db.Model):
     __tablename__ = 'roles'
     

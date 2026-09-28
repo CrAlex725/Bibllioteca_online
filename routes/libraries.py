@@ -1,5 +1,6 @@
 from flask import jsonify, request, Blueprint
-from models import Biblioteca, Usuario
+from sqlalchemy.exc import IntegrityError
+from models import Biblioteca, Usuario, Rol, Asignacion
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from extensions import db
 
@@ -39,10 +40,74 @@ def perfil_biblioteca(id):
     
     return jsonify(biblioteca.to_dict()), 200
 
-
 # POST /bibliotecas → solo admin (¿o bibliotecario?).
+@libraries_bp.route('', methods=['POST'])
+@jwt_required()
+def crear_biblioteca():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario no existe"}), 401
+    
+    if not usuario.perfil_completo():
+        return jsonify({"error":"El usuario no tiene los datos completos"}), 403
+    
+    name = data.get('name')
+    address = data.get('address')
+    phone = data.get('phone')
+    email = data.get('email')
+    is_public = data.get('is_public')
+    
+    if not name or not address or not phone or not email or is_public is None:
+        return jsonify({"error":"Uno de los datos no fue otorgados"}), 400
+    
+    name = name.strip()
+    address = address.strip()
+    phone = phone.strip()
+    email = email.strip()
+    
+    for asignacion in usuario.asignaciones:
+        if asignacion.is_owner and asignacion.biblioteca.is_active:
+            return jsonify({"error":"El usuario ya es jefe de una biblioteca activa"}), 403
 
-
+    rol_bibliotecario = Rol.query.filter_by(name="bibliotecario").first()
+    
+    if not rol_bibliotecario:
+        return jsonify({"error":"El rol solicitado no está disponible"}), 500
+    
+    try:
+        biblioteca = Biblioteca(
+            name= name,
+            address=address,
+            phone=phone,
+            email=email,
+            is_public=is_public,
+            created_by=usuario.id
+        )
+        
+        db.session.add(biblioteca)
+        db.session.flush()
+        
+        asignacion = Asignacion(
+            usuario_id=usuario.id,
+            rol_id=rol_bibliotecario.id,
+            biblioteca_id=biblioteca.id,
+            is_owner=True
+        )
+        db.session.add(asignacion)
+        db.session.commit()
+        
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo Salió mal durante el proceso de creacion de la biblioteca"}), 500
+    
+    return jsonify(biblioteca.to_dict()), 201
 # PUT /bibliotecas/<id> → solo admin.
 
 # DELETE /bibliotecas/<id> → solo admin.
