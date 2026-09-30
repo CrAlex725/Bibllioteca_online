@@ -13,3 +13,12 @@ def listar_estado():
     
     estado = query.all()
     return jsonify([e.to_dict() for e in estado]), 200
+
+@states_bp.route('/<int:id>', methods=['GET'])
+def estado_info(id):
+    estado = Estado.query.filter_by(id=id).first()
+    
+    if not estado:
+        return jsonify({"error":"El estado asociado al id no existe"}), 404
+    
+    return jsonify(estado.to_dict()), 200
