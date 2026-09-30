@@ -67,3 +67,43 @@ def crear_estado():
         return jsonify({"error":"Algo Salió mal durante el proceso de crear el estado"}), 500
     
     return jsonify(estado.to_dict()), 201
+
+@states_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def actualizar_modelo_estado(id):
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id= int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario NO existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"El usuario No tiene permisos para realizar esta accion"}), 403
+    
+    estado = Estado.query.filter_by(id=id).first()
+    
+    if not estado:
+        return jsonify({"error":"El estado que buscas NO existe"}), 404
+    
+    nombre = data.get('nombre')
+    
+    if not nombre:
+        return jsonify({"error":"El nombre es obligatorio"}), 400
+    
+    existe = Estado.query.filter(
+            db.func.lower(Estado.nombre) == db.func.lower(nombre),
+            Estado.id != id
+        ).first()
+    
+    if existe:
+        return jsonify({"error":"El Estado ya existe"}), 409
+    
+    estado.nombre = nombre
+    db.session.commit()
+    
+    return jsonify (estado.to_dict()), 200
