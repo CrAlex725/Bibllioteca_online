@@ -9,6 +9,7 @@ from routes.auth import auth_bp
 from routes.books import books_bp
 from routes.health import health_bp
 from routes.libraries import libraries_bp
+from routes.states import states_bp
 
 load_dotenv()
 
@@ -27,6 +28,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(books_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(libraries_bp)
+app.register_blueprint(states_bp)
     
 if __name__ == '__main__':
     app.run(debug=True)

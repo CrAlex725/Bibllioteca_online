@@ -209,6 +209,12 @@ class Estado(db.Model):
     
     ejemplares = db.relationship('Ejemplar', back_populates='estado')
     
+    def to_dict(self):
+        return{
+            "id" : self.id,
+            "nombre" : self.nombre
+        }
+    
     def __repr__(self):
         return f'<Estado: {self.nombre}>'
 
