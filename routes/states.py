@@ -1,5 +1,8 @@
-from models import Estado
-from flask import jsonify, Blueprint,request
+from flask import jsonify, Blueprint, request
+from sqlalchemy.exc import IntegrityError
+from models import Usuario, Estado
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from extensions import db
 
 states_bp = Blueprint('states', __name__, url_prefix='/states')
 
@@ -22,3 +25,45 @@ def estado_info(id):
         return jsonify({"error":"El estado asociado al id no existe"}), 404
     
     return jsonify(estado.to_dict()), 200
+
+@states_bp.route('', methods=['POST'])
+@jwt_required()
+def crear_estado():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No Existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"El usuario No tiene permiso para realizar esta accion"}), 403
+    
+    nombre = data.get('nombre')
+    
+    if not nombre:
+        return jsonify({"error": "El nombre es obligatorio"}), 400
+    
+    existe = Estado.query.filter(
+        db.func.lower(Estado.nombre) == db.func.lower(nombre)
+    ).first()
+    
+    if existe:
+        return jsonify({"error":"El estado ya existe"}), 409
+        
+    try:
+        estado = Estado(
+            nombre = nombre
+        )
+        db.session.add(estado)
+        db.session.commit()
+        
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo Salió mal durante el proceso de crear el estado"}), 500
+    
+    return jsonify(estado.to_dict()), 201

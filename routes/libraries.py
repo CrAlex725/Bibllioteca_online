@@ -1,7 +1,7 @@
 from flask import jsonify, request, Blueprint
 from sqlalchemy.exc import IntegrityError
 from models import Biblioteca, Usuario, Rol, Asignacion
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 
 libraries_bp = Blueprint('libraries', __name__, url_prefix='/libraries')
