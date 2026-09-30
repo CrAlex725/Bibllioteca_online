@@ -107,3 +107,30 @@ def actualizar_modelo_estado(id):
     db.session.commit()
     
     return jsonify (estado.to_dict()), 200
+
+@states_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_estado(id):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+    
+    estado = Estado.query.filter_by(id=id).first()
+    
+    if not estado:
+        return jsonify({"error":"El estado no existe"}), 404
+    
+    try:
+        db.session.delete(estado)
+        db.session.commit()
+        
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió mal en la eliminación del estado"}), 409
+    
+    return "", 204
