@@ -231,7 +231,7 @@ class Ejemplar(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     
     __table_args__ = (
-        db.UniqueConstraint('libro_id', 'numero_ejemplar', name='uq_libro_numero_ejemplar'),
+        db.UniqueConstraint('libro_id', 'biblioteca_id', 'numero_ejemplar', name='uq_libro_biblioteca_numero'),
     )
     
     estado = db.relationship('Estado', back_populates='ejemplares')
