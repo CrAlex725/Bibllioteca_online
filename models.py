@@ -242,6 +242,31 @@ class Ejemplar(db.Model):
     
     biblioteca = db.relationship('Biblioteca', back_populates='ejemplares')
     
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "numero_ejemplar": self.numero_ejemplar,
+            "signatura": self.signatura,
+            "created_at": self.created_at.isoformat(),
+            "libro": {
+                "id": self.libro.id,
+                "isbn": self.libro.isbn,
+                "title": self.libro.title
+            },
+            "biblioteca": {
+                "id": self.biblioteca.id,
+                "name": self.biblioteca.name
+            },
+            "estado": {
+                "id": self.estado.id,
+                "nombre": self.estado.nombre
+            },
+            "creador": {
+                "id": self.creador.id,
+                "name": self.creador.name
+            }
+        }
+        
     def __repr__(self):
         return f'<Ejemplar libro={self.libro_id} num={self.numero_ejemplar}>'
     
