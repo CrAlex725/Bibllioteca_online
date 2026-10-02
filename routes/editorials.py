@@ -1,5 +1,8 @@
 from flask import jsonify, request, Blueprint
-from models import Editorial
+from sqlalchemy.exc import IntegrityError
+from models import Editorial, Usuario
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from extensions import db
 
 editorial_bp = Blueprint('editorials', __name__, url_prefix='/editorials')
 
@@ -23,3 +26,43 @@ def editorial_info(id):
     
     return jsonify(editorial.to_dict()),200
 
+@editorial_bp.route('', methods=['POST'])
+@jwt_required()
+def crear_editorial():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario no existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
+    
+    nombre = data.get('nombre')
+    
+    if not nombre:
+        return jsonify ({"error":"debes entregar un nombre para la nueva editorial"}), 400
+    
+    editorial = Editorial.query.filter(
+        db.func.lower(Editorial.nombre) == db.func.lower(nombre)
+    ).first()
+    
+    if editorial:
+        return jsonify({"error":"LA editorial ya existe"}), 409
+    
+    try:
+        nueva_editorial = Editorial(
+            nombre = nombre
+        )
+        db.session.add(nueva_editorial)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió mal con el proceso de creacion"}), 500
+    
+    return jsonify(nueva_editorial.to_dict()), 201
