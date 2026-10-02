@@ -154,3 +154,42 @@ def agregar_ejemplar():
         }), 409
     
     return jsonify(nuevo_ejemplar.to_dict()), 201
+
+@exemplars_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def actualizar_ejemplar(id):
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error":"JSON invalido o vacío"}), 400
+    
+    ejemplar = Ejemplar.query.filter_by(id=id).first()
+    if not ejemplar:
+        return jsonify({"error":"El ejemplar No existe"}), 404
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    if not usuario:
+        return jsonify({"error":"el usuario no existe"}), 401
+    
+    if not usuario.es_admin():
+        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id):
+            return jsonify({"error":"El usuario no tiene permiso para realizar esta accion"}), 403
+
+    if 'estado_id' not in data and 'signatura' not in data:
+        return jsonify({"error":"Debes mandar al menos un campo para actualizar"}), 400
+        
+    if 'estado_id' in data:
+        try:
+            nuevo_estado_id = int(data['estado_id'])
+        except (TypeError, ValueError):
+            return jsonify({"error":"El id del estado debe ser un entero"}), 400
+        estado = Estado.query.filter_by(id=nuevo_estado_id).first()
+        if not estado:
+            return jsonify({"error":"el estado que No existe"}), 400
+        ejemplar.estado_id = nuevo_estado_id
+        
+    if 'signatura' in data:
+        ejemplar.signatura = data['signatura']
+    
+    db.session.commit()
+    return jsonify(ejemplar.to_dict()), 200
