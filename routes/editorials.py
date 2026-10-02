@@ -66,3 +66,42 @@ def crear_editorial():
         return jsonify({"error":"Algo salió mal con el proceso de creacion"}), 500
     
     return jsonify(nueva_editorial.to_dict()), 201
+
+@editorial_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def editar_editorial(id):
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON Invalido o vacío"}),400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    if not usuario:
+        return jsonify({"error":"El usuario no existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"El usuario no tiene permiso para crear esta accion"}), 403
+
+    editorial = Editorial.query.filter_by(id=id).first()
+    
+    if not editorial:
+        return jsonify({"error":"La editorial No existe"}), 404
+    
+    nombre = data.get('nombre')
+    
+    if not nombre:
+        return jsonify({"error":"debes asignar un nombre a la editorial"}), 400
+    
+    existe = Editorial.query.filter(
+        db.func.lower(Editorial.nombre) == db.func.lower(nombre),
+        Editorial.id != id
+    ).first()
+    
+    if existe:
+        return jsonify({"error":"Ya existe otra editorial con ese nombre"}), 409
+    
+    editorial.nombre = nombre
+    
+    db.session.commit()
+    return jsonify(editorial.to_dict()),200
