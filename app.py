@@ -11,6 +11,7 @@ from routes.health import health_bp
 from routes.libraries import libraries_bp
 from routes.states import states_bp
 from routes.exemplars import exemplars_bp
+from routes.editorials import editorial_bp
 
 load_dotenv()
 
@@ -31,6 +32,7 @@ app.register_blueprint(health_bp)
 app.register_blueprint(libraries_bp)
 app.register_blueprint(states_bp)
 app.register_blueprint(exemplars_bp)
+app.register_blueprint(editorial_bp)
     
 if __name__ == '__main__':
     app.run(debug=True)
