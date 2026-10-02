@@ -194,6 +194,12 @@ class Editorial(db.Model):
     
     libros = db.relationship('Libro', back_populates='editorial')
     
+    def to_dict(self):
+        return{
+            "id": self.id,
+            "nombre":self.nombre
+        }
+    
     def __repr__(self):
         return f'<Editorial {self.nombre}>'
 
