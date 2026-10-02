@@ -63,6 +63,12 @@ class Usuario(db.Model):
             if asignacion.biblioteca_id == biblioteca_id and asignacion.is_owner:
                 return True
         return False
+    
+    def tiene_asignacion_en(self, biblioteca_id):
+        for asignacion in self.asignaciones:
+            if asignacion.biblioteca_id == biblioteca_id:
+                return True
+        return False
 
 class Rol(db.Model):
     __tablename__ = 'roles'
