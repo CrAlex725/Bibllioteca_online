@@ -193,3 +193,31 @@ def actualizar_ejemplar(id):
     
     db.session.commit()
     return jsonify(ejemplar.to_dict()), 200
+
+@exemplars_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_ejemplar(id):
+    ejemplar = Ejemplar.query.filter_by(id=id).first()
+    if not ejemplar:
+        return jsonify({"error":"El ejemplar No existe"}), 404
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    if not usuario:
+        return jsonify({"error":"el usuario no existe"}), 401
+    
+    if not usuario.es_admin():
+        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id):
+            return jsonify({"error":"El usuario no tiene permiso para realizar esta accion"}), 403
+        
+    estado = Estado.query.filter(
+        db.func.lower(Estado.nombre) == "de baja"
+        ).first()
+    
+    if not estado:
+        return jsonify({"error":"El estado 'de baja' no existe"}),500
+    
+    ejemplar.estado_id = estado.id
+    
+    db.session.commit()
+    return "", 204
