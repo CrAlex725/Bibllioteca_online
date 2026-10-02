@@ -13,3 +13,13 @@ def editorial():
     
     editorial = query.all()
     return jsonify([e.to_dict() for e in editorial]), 200
+
+@editorial_bp.route('/<int:id>', methods=['GET'])
+def editorial_info(id):
+    editorial = Editorial.query.filter_by(id=id).first()
+    
+    if not editorial:
+        return jsonify({"error":"La editorial no existe"}), 404
+    
+    return jsonify(editorial.to_dict()),200
+
