@@ -105,3 +105,30 @@ def editar_editorial(id):
     
     db.session.commit()
     return jsonify(editorial.to_dict()),200
+
+@editorial_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_editorial(id):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify ({"error":"El usuario no existe"}),401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
+    
+    editorial = Editorial.query.filter_by(id=id).first()
+    
+    if not editorial:
+        return jsonify({"error":"La editorial No existe"}), 404
+    
+    try:
+        db.session.delete(editorial)
+        db.session.commit()
+    
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió mal en la eliminación de la Editorial"}), 409
+    
+    return "", 204
