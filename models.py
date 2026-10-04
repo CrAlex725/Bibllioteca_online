@@ -20,6 +20,9 @@ class Usuario(db.Model):
     
     ejemplares_creados = db.relationship('Ejemplar', back_populates='creador')
     
+    prestamos_como_usuario = db.relationship('Prestamo', foreign_keys='Prestamo.usuario_id', back_populates='usuario')
+    prestamos_creados = db.relationship('Prestamo', foreign_keys='Prestamo.created_by', back_populates='creador')
+    
     def __repr__(self):
         return f'<Usuario {self.username}>'
     
@@ -98,6 +101,8 @@ class Biblioteca(db.Model):
     asignaciones = db.relationship('Asignacion', back_populates='biblioteca')
     
     ejemplares = db.relationship('Ejemplar', back_populates='biblioteca')
+    
+    prestamos = db.relationship('Prestamo', back_populates='biblioteca')
     
     def to_dict(self):
         return{
@@ -242,6 +247,8 @@ class Ejemplar(db.Model):
     created_at = db.Column(db.DateTime, default = db.func.current_timestamp(), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     
+    prestamos = db.relationship('Prestamo', back_populates='ejemplar')
+    
     __table_args__ = (
         db.UniqueConstraint('libro_id', 'biblioteca_id', 'numero_ejemplar', name='uq_libro_biblioteca_numero'),
     )
@@ -281,4 +288,22 @@ class Ejemplar(db.Model):
         
     def __repr__(self):
         return f'<Ejemplar libro={self.libro_id} num={self.numero_ejemplar}>'
+    
+class Prestamo(db.Model):
+    __tablename__ = 'prestamos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ejemplar_id = db.Column(db.Integer, db.ForeignKey('ejemplares.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    biblioteca_id = db.Column(db.Integer, db.ForeignKey('bibliotecas.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    
+    fecha_prestamo = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    fecha_vencimiento = db.Column(db.DateTime, nullable=False)
+    fecha_devolucion = db.Column(db.DateTime)
+    
+    ejemplar = db.relationship('Ejemplar', back_populates='prestamos')
+    usuario = db.relationship('Usuario', foreign_keys=[usuario_id], back_populates='prestamos_como_usuario')
+    biblioteca = db.relationship('Biblioteca', back_populates='prestamos')
+    creador = db.relationship('Usuario', back_populates='prestamos_creados', foreign_keys=[created_by])
     
