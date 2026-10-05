@@ -307,3 +307,31 @@ class Prestamo(db.Model):
     biblioteca = db.relationship('Biblioteca', back_populates='prestamos')
     creador = db.relationship('Usuario', back_populates='prestamos_creados', foreign_keys=[created_by])
     
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "fecha_prestamo": self.fecha_prestamo.isoformat(),
+            "fecha_vencimiento": self.fecha_vencimiento.isoformat(),
+            "fecha_devolucion": self.fecha_devolucion.isoformat() if self.fecha_devolucion else None,
+            "ejemplar": {
+                "id": self.ejemplar.id,
+                "numero_ejemplar": self.ejemplar.numero_ejemplar,
+                "libro": {
+                    "id": self.ejemplar.libro.id,
+                    "isbn": self.ejemplar.libro.isbn,
+                    "title": self.ejemplar.libro.title
+                }
+            },
+            "biblioteca": {
+                "id": self.biblioteca.id,
+                "name": self.biblioteca.name
+            },
+            "usuario": {
+                "id": self.usuario.id,
+                "name": self.usuario.name
+            },
+            "creador": {
+                "id": self.creador.id,
+                "name": self.creador.name
+            }
+        }
