@@ -187,3 +187,26 @@ def mis_prestamos():
     prestamos = Prestamo.query.filter_by(usuario_id=usuario.id).order_by(Prestamo.fecha_prestamo.desc()).all()
     
     return jsonify([p.to_dict() for p in prestamos]), 200
+
+@prestamos_bp.route('', methods=['GET'])
+@jwt_required()
+def todos_los_prestamos():
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El Usuario No existe"}), 401
+    
+    query = Prestamo.query
+    
+    if not usuario.es_admin():
+        if not usuario.es_bibliotecario():
+            return jsonify({"error":"No puedes ver esta información"}), 403
+    
+        biblioteca_ids = [a.biblioteca_id for a in usuario.asignaciones]
+        query = query.filter(Prestamo.biblioteca_id.in_(biblioteca_ids))
+        
+    prestamos = query.order_by(Prestamo.fecha_prestamo.desc()
+    ).all()
+        
+    return jsonify([p.to_dict() for p in prestamos]),200
