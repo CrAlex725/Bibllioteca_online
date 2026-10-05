@@ -127,3 +127,43 @@ def crear_prestamo():
         return jsonify({"error":"Algo salió mal en la creacion del prestamo"}), 409
     
     return jsonify(prestamo.to_dict()), 201
+
+@prestamos_bp.route('/<int:id>/devolver', methods=['POST'])
+@jwt_required()
+def devolver_prestamo(id):
+    user_id = int(get_jwt_identity())
+    creador = Usuario.query.filter_by(id=user_id).first()
+    
+    if not creador:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    prestamo = Prestamo.query.filter_by(id=id).first()
+    
+    if not prestamo:
+        return jsonify({"error":"El prestamo No existe"}), 404
+    
+    if not creador.es_admin():
+        if not creador.tiene_asignacion_en(prestamo.biblioteca_id):
+            return jsonify({"error":"No tienes permisos para realizar esta accion"}), 403
+    
+    if prestamo.fecha_devolucion is not None:
+        return jsonify({"error":"El prestamo ya está marcado como devuelto"}), 409
+    
+    estado_disponible = Estado.query.filter(
+        db.func.lower(Estado.nombre) == "disponible"
+    ).first()
+    
+    if not estado_disponible:
+        return jsonify({"error":"El estado disponible No existe"}) ,500
+    
+    ahora = datetime.utcnow()
+    
+    try:
+        prestamo.fecha_devolucion = ahora
+        prestamo.ejemplar.estado_id = estado_disponible.id
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"algo salió mal en el proceso de devolucion"}), 500
+    
+    return jsonify(prestamo.to_dict()), 200
