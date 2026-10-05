@@ -210,3 +210,26 @@ def todos_los_prestamos():
     ).all()
         
     return jsonify([p.to_dict() for p in prestamos]),200
+
+@prestamos_bp.route('/<int:id>', methods=['GET'])
+@jwt_required()
+def detalle_prestamo(id):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El Usuario No existe"}), 401
+    
+    prestamo = Prestamo.query.filter_by(id=id).first()
+    
+    if not prestamo:
+        return jsonify({"error":"El Prestamo no Existe"}), 404
+    
+    tiene_permiso = (usuario.es_admin() or 
+                     usuario.tiene_asignacion_en(prestamo.biblioteca_id) or 
+                     prestamo.usuario_id == usuario.id)
+    if not tiene_permiso:
+        return jsonify({"error":"No tienes permiso de realizar esta accion"}), 404
+    
+    return jsonify(prestamo.to_dict()), 200
+        
