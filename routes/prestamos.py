@@ -174,3 +174,16 @@ def devolver_prestamo(id):
         return jsonify({"error":"algo salió mal en el proceso de devolucion"}), 500
     
     return jsonify(prestamo.to_dict()), 200
+
+@prestamos_bp.route('/mine', methods=['GET'])
+@jwt_required()
+def mis_prestamos():
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    prestamos = Prestamo.query.filter_by(usuario_id=usuario.id).order_by(Prestamo.fecha_prestamo.desc()).all()
+    
+    return jsonify([p.to_dict() for p in prestamos]), 200
