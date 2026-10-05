@@ -4,6 +4,7 @@ from models import (Usuario,Ejemplar, Asignacion, Prestamo, Estado)
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from datetime import datetime, timedelta
+from helpers import normalizar_rut
 
 prestamos_bp = Blueprint('prestamos', __name__, url_prefix='/prestamos')
 
@@ -16,16 +17,20 @@ def crear_prestamo():
         return jsonify({"error":"JSON Invalido o vacío"}), 400
     
     ejemplar_id = data.get('ejemplar_id')
-    usuario_id = data.get('usuario_id')
+    rut = data.get('rut')
     dias = data.get('dias')
     
-    if not ejemplar_id or not  usuario_id:
+    if not ejemplar_id or not  rut:
         return jsonify({"error":"los campos ejemplar y usuario son obligatorios"}), 400
     try:
         ejemplar_id = int(ejemplar_id)
-        usuario_id = int(usuario_id)
     except (TypeError, ValueError):
         return jsonify({"error":"los vaolres deben ser de tipo entero"}), 400
+    
+    rut = normalizar_rut(rut)
+    
+    if not rut:
+        return jsonify({"error":"El rut es obligatorio"}), 400
     
     if not dias:
         dias = 14
@@ -64,8 +69,10 @@ def crear_prestamo():
     if ejemplar.estado.nombre.lower() != 'disponible':
         return jsonify({"error":"El ejemplar no está disponible"}), 409
     
-    usuario_destinatario = Usuario.query.filter_by(id=usuario_id).first()
-    
+    usuario_destinatario = Usuario.query.filter(
+        db.func.replace(db.func.replace(
+            Usuario.rut, '-', ""),".","") == rut
+    ).first()
     if not usuario_destinatario:
         return jsonify({"error":"El destinatario No existe"}), 404
     
