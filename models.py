@@ -155,6 +155,7 @@ class Libro(db.Model):
     year_publication = db.Column(db.Integer)
     clasificacion = db.Column(db.String(100))
     created_at =db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    is_complete = db.Column(db.Boolean, default=True, nullable=False)
     
     editorial_id = db.Column(db.Integer, db.ForeignKey('editoriales.id'), nullable=False)
     editorial = db.relationship('Editorial', back_populates='libros')
@@ -168,7 +169,8 @@ class Libro(db.Model):
             "isbn": self.isbn,
             "title" : self.title,
             "year_publication": self.year_publication,
-            "autores": [{"id":a.id, "nombre":a.nombre} for a in self.autores]
+            "autores": [{"id":a.id, "nombre":a.nombre} for a in self.autores],
+            "is_complete": self.is_complete
         }
         
     def to_dict(self):
@@ -185,7 +187,8 @@ class Libro(db.Model):
             {"id": autor.id, "nombre": autor.nombre}
             for autor in self.autores
         ],
-        "created_at": self.created_at.isoformat()
+        "created_at": self.created_at.isoformat(),
+        "is_complete": self.is_complete
     }
 
     def __repr__(self):
