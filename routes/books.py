@@ -93,12 +93,16 @@ def crear_libro():
     title = data.get('title')
     editorial = data.get('editorial')
     autores = data.get('autores')
+    is_complete = data.get('is_complete', True)
     
     if not isinstance(autores, list):
         return jsonify({"error":"autores debe ser una lista"}), 400
     
     if not isbn or not title or not editorial or not autores:
         return jsonify({"error":"Todos los campos mencionados son obligatorios"}), 400
+    
+    if not isinstance(is_complete, bool):
+        return jsonify({"error":"is_complete debe ser booleano"}), 400
     
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
@@ -153,7 +157,8 @@ def crear_libro():
             title=title,
             year_publication=data.get('year'),
             clasificacion=data.get('clasificacion'),
-            editorial_id=editoriall.id
+            editorial_id=editoriall.id,
+            is_complete=is_complete
         )
         libro.autores = autores_obj
         
