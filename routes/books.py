@@ -7,6 +7,36 @@ from extensions import db
 
 books_bp = Blueprint('books', __name__, url_prefix='/books')
 
+@books_bp.route('/resolver-isbn/<isbn>')
+@jwt_required()
+def consulta_isbn(isbn):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    if not usuario.es_admin():
+        if not usuario.es_bibliotecario():
+            return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+    
+    isbn_normalizado = normalizar_isbn(isbn)
+    
+    libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
+    
+    if not libro:
+        return jsonify({
+            "exists": False,
+            "source": "unknown",
+            "isbn": isbn_normalizado
+            }), 200
+    
+    return jsonify({
+        "exists": True,
+        "source": "db",
+        "libro": libro.to_dict()
+        }), 200
+
 @books_bp.route('', methods=['GET'])
 def libros():
     titulo = request.args.get('Titulo')
@@ -201,7 +231,7 @@ def eliminar_libro(isbn):
         return jsonify({"error":"El usuario No existe"}), 401
     
     if not usuario.es_admin():
-        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403    
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
     
     isbn_normalizado = normalizar_isbn(isbn)
     
