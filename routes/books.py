@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from models import (Usuario,Libro, Editorial, Autor)
 from helpers import normalizar_isbn
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from services.openlibrary import buscar_por_isbn
 from extensions import db
 
 books_bp = Blueprint('books', __name__, url_prefix='/books')
@@ -24,17 +25,26 @@ def consulta_isbn(isbn):
     
     libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
     
-    if not libro:
+    if libro:
+        return jsonify({
+            "exists": True,
+            "source": "db",
+            "libro": libro.to_dict()
+            }), 200
+        
+    datos = buscar_por_isbn(isbn_normalizado)
+    
+    if datos:
         return jsonify({
             "exists": False,
-            "source": "unknown",
-            "isbn": isbn_normalizado
-            }), 200
+            "source": "open_library",
+            "datos_propuestos": datos
+        }), 200
     
     return jsonify({
-        "exists": True,
-        "source": "db",
-        "libro": libro.to_dict()
+        "exists": False,
+        "source": "manual",
+        "isbn": isbn_normalizado
         }), 200
 
 @books_bp.route('', methods=['GET'])
