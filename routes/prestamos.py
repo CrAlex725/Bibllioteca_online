@@ -69,6 +69,9 @@ def crear_prestamo():
     if ejemplar.estado.nombre.lower() != 'disponible':
         return jsonify({"error":"El ejemplar no está disponible"}), 409
     
+    if not ejemplar.libro.is_complete:
+        return jsonify({"error": "El libro no está completo, no se puede prestar"}), 409
+    
     usuario_destinatario = Usuario.query.filter(
         db.func.replace(db.func.replace(
             Usuario.rut, '-', ""),".","") == rut
