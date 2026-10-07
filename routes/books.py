@@ -8,7 +8,7 @@ from extensions import db
 
 books_bp = Blueprint('books', __name__, url_prefix='/books')
 
-@books_bp.route('/resolver-isbn/<isbn>')
+@books_bp.route('/resolver-isbn/<string:isbn>')
 @jwt_required()
 def consulta_isbn(isbn):
     user_id = int(get_jwt_identity())
@@ -263,3 +263,31 @@ def eliminar_libro(isbn):
         return jsonify({"error":"Algo salió mal en la eliminación del libro"}), 409
     
     return "", 204
+
+@books_bp.route('/<string:isbn>/complete', methods=['PUT'])
+@jwt_required()
+def completar_libro(isbn):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    if not usuario.es_admin():
+        return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
+    
+    isbn_normalizado = normalizar_isbn(isbn)
+    
+    libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
+    
+    if not libro:
+        return jsonify({"error":f"El libro con ISBN {isbn} NO existe"}), 404
+    
+    if libro.is_complete:
+        return jsonify({"error":"El libro Ya está completo"}), 409
+    
+    libro.is_complete = True
+    
+    db.session.commit()
+    
+    return jsonify(libro.to_dict()), 200
