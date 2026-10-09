@@ -77,3 +77,33 @@ def asignaciones():
             return jsonify({"error":"is_owner, debe ser true o false"}), 400
     asignaciones = query.order_by(Asignacion.id.asc()).all()
     return jsonify([a.to_dict() for a in asignaciones]), 200
+
+@asignaciones_bp.route('/<int:id>', methods=['GET'])
+@jwt_required()
+def una_asignacion(id):
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}),401
+    
+    asignacion = Asignacion.query.filter_by(id=id).first()
+    
+    if not asignacion:
+        return jsonify({"error":"La asignacion No existe"}), 404
+    
+    if usuario.es_admin():
+        return jsonify(asignacion.to_dict()),200
+    
+    bibliotecas =[
+        a.biblioteca_id for a in usuario.asignaciones
+        if a.rol.name.lower() in ["bibliotecario","asistente"]
+    ]
+    
+    if asignacion.biblioteca_id in bibliotecas:
+        return jsonify(asignacion.to_dict()), 200
+    
+    if asignacion.usuario_id == usuario.id:
+        return jsonify(asignacion.to_dict()), 200
+    
+    return jsonify({"error":"La asignacion no existe"}), 404
