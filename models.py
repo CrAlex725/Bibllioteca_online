@@ -137,6 +137,24 @@ class Asignacion(db.Model):
     rol = db.relationship('Rol', back_populates='asignaciones')
     biblioteca = db.relationship('Biblioteca', back_populates='asignaciones')
     
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "usuario": {
+                "id": self.usuario.id, 
+                "name": self.usuario.name
+                },
+            "rol": {
+                "id": self.rol.id, 
+                "name": self.rol.name
+                },
+            "biblioteca": {
+                "id": self.biblioteca.id, 
+                "name": self.biblioteca.name
+                },
+            "is_owner": self.is_owner
+        }
+    
     def __repr__(self):
         return f'<Asignacion u={self.usuario_id} r={self.rol_id} b={self.biblioteca_id}>'
     
