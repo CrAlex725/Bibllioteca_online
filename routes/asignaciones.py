@@ -1,5 +1,6 @@
 from flask import jsonify, request, Blueprint
-from models import (Usuario, Asignacion)
+from sqlalchemy.exc import IntegrityError
+from models import (Usuario, Asignacion, Biblioteca, Rol)
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from helpers import normalizar_rut
 from extensions import db
@@ -107,3 +108,87 @@ def una_asignacion(id):
         return jsonify(asignacion.to_dict()), 200
     
     return jsonify({"error":"La asignacion no existe"}), 404
+
+@asignaciones_bp.route('', methods=['POST'])
+@jwt_required()
+def crear_asignacion():
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return jsonify({"error":"JSON inválido o vacío"}), 400
+    
+    usuario_id = data.get('usuario_id')
+    biblioteca_id = data.get('biblioteca_id')
+    rol_id = data.get('rol_id')
+    
+    if None in (usuario_id, biblioteca_id, rol_id):
+        return jsonify({"error": "Faltan campos obligatorios: usuario_id, biblioteca_id, rol_id"}), 400
+    
+    try:
+        usuario_id = int(usuario_id)
+        biblioteca_id = int(biblioteca_id)
+        rol_id = int(rol_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Todos los datos deben ser enteros"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    usuario_valido = (
+        usuario.es_admin() or 
+        usuario.es_jefe_de(biblioteca_id)
+        )
+    
+    if not usuario_valido:
+        return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
+    
+    biblioteca_asignacion = Biblioteca.query.filter_by(
+        id=biblioteca_id
+        ).first()
+    if not biblioteca_asignacion:
+        return jsonify({"error":"La biblioteca NO existe"}), 404
+    
+    usuario_asignacion = Usuario.query.filter_by(
+        id=usuario_id
+        ).first()
+    if not usuario_asignacion:
+        return jsonify({"error":"El usuario NO existe"}), 404
+    
+    if not biblioteca_asignacion.is_active:
+        return jsonify({"error":"La biblioteca NO está activa"}), 409
+    
+    rol_asignacion = Rol.query.filter_by(
+        id=rol_id
+        ).first()
+    if not rol_asignacion:
+        return jsonify({"error":"El rol NO existe"}), 400
+    
+    if rol_asignacion.name.lower() == "bibliotecario":
+        return jsonify({"error":"El rol NO puede ser bibliotecario"}), 403
+    
+    verificar_asignacion = Asignacion.query.filter_by(
+            usuario_id=usuario_id,
+            biblioteca_id=biblioteca_id,
+        ).first()
+    
+    if verificar_asignacion:
+        return jsonify({"error":"Ya existe una asignacion en esta biblioteca"}), 409
+    
+    nueva_asignacion = Asignacion(
+                usuario_id=usuario_id,
+                biblioteca_id=biblioteca_id,
+                rol_id=rol_id,
+                is_owner=False
+            )
+    
+    try:
+        db.session.add(nueva_asignacion)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió mal durante el proceso de asignar"}),409
+    
+    return jsonify(nueva_asignacion.to_dict()), 201
