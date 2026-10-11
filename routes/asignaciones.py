@@ -192,3 +192,58 @@ def crear_asignacion():
         return jsonify({"error":"Algo salió mal durante el proceso de asignar"}),409
     
     return jsonify(nueva_asignacion.to_dict()), 201
+
+@asignaciones_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def actualizar_asignacion(id):
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error":"JSON inválido o vacío"}), 400
+    
+    rol_id = data.get('rol_id')
+    
+    if not rol_id:
+        return jsonify({"error":"Debes asignar un rol a la nueva asignacion"}), 400
+    
+    try:
+        rol_id = int(rol_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "El id de rol debe ser enteros"}), 400
+    
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()    
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    asignacion = Asignacion.query.filter_by(
+        id=id
+    ).first()
+    if not asignacion:
+        return jsonify({"error":"La asignacion no existe"}), 404
+    
+    usuario_valido = (
+            usuario.es_admin() or 
+            usuario.es_jefe_de(asignacion.biblioteca_id)
+            )
+    if not usuario_valido:
+        return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
+    
+    if asignacion.is_owner:
+        return jsonify({"error":"No puedes modificar la asignación del jefe de la biblioteca"}), 403
+    
+    rol = Rol.query.filter_by(
+        id=rol_id
+    ).first()
+    if not rol:
+        return jsonify({"error":"El rol solicitado No existe"}), 400
+
+    if rol.name.lower() == "bibliotecario":
+        return jsonify({"error":f"No puedes cambiar el rol a {rol.name}"}), 403
+
+    if asignacion.rol_id == rol_id:
+        return jsonify({"error":f"La asignacion del usuario: {asignacion.usuario.name}, ya tiene el rol {rol.name}"}), 409
+    
+    asignacion.rol_id = rol_id
+
+    db.session.commit()
+    return jsonify(asignacion.to_dict()), 200
