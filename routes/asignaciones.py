@@ -247,3 +247,34 @@ def actualizar_asignacion(id):
 
     db.session.commit()
     return jsonify(asignacion.to_dict()), 200
+
+@asignaciones_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_asignacion(id):
+    user_id = int(get_jwt_identity())
+    usuario= Usuario.query.filter_by(id=user_id).first()
+    if not usuario:
+        return jsonify({"error":"El usuario No existe"}), 401
+    
+    asignacion = Asignacion.query.filter_by(id=id).first()
+    if not asignacion:
+        return jsonify({"error":"La asignación NO existe"}), 404
+    
+    usuario_valido = (
+        usuario.es_admin() or 
+        usuario.es_jefe_de(asignacion.biblioteca_id)
+    )
+    
+    if not usuario_valido:
+        return jsonify({"error":"No Tienes permiso para realizar esta accion"}), 403
+    
+    if asignacion.is_owner:
+        return jsonify({"error":"No se puede eliminar la Asignacion del Jefe"}), 409
+    try:        
+        db.session.delete(asignacion)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error":"Algo salió Mal durante el proceso de eliminacion"}),409
+    
+    return "", 204
