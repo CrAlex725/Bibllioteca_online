@@ -1,252 +1,179 @@
 from app import app
 from extensions import db
 from models import (
-    Usuario,
-    Rol,
-    Biblioteca,
-    Asignacion,
-    Libro,
-    Editorial,
-    Autor,
-    Ejemplar,
-    Estado
+    Usuario, Rol, Biblioteca, Asignacion,
+    Libro, Editorial, Autor, Estado, Ejemplar,
 )
-from werkzeug.security import generate_password_hash
+
+from sqlalchemy import func
 
 
-def get_or_create(model, defaults=None, **kwargs):
-    """Busca un registro por kwargs; si no existe, lo crea con defaults."""
-    instance = db.session.query(model).filter_by(**kwargs).first()
+def get_or_create(model, lookup, defaults=None):
+    """Devuelve (instancia, creada), buscando con los campos de lookup."""
+    instance = model.query.filter_by(**lookup).first()
     if instance:
         return instance, False
-    params = {**kwargs, **(defaults or {})}
-    instance = model(**params)
+
+    instance = model(**{**lookup, **(defaults or {})})
     db.session.add(instance)
     db.session.flush()
     return instance, True
 
 
-with app.app_context():
-    # ---------- 3 Roles ----------
-    roles_data = ["Administrador", "Bibliotecario", "Asistente"]
-    roles = []
-    for name in roles_data:
-        rol, _ = get_or_create(Rol, name=name)
-        roles.append(rol)
+def get_or_create_ci(model, field, value, defaults=None):
+    """Búsqueda sin distinguir mayúsculas/minúsculas para campos de texto."""
+    column = getattr(model, field)
+    instance = model.query.filter(func.lower(column) == value.lower()).first()
+    if instance:
+        return instance, False
 
-    # ---------- 3 Bibliotecas ----------
-    bibliotecas_data = [
-        {
-            "name": "Biblioteca Central",
-            "address": "Av. Principal 100",
-            "phone": "+56223456789",
-            "email": "central@biblioteca.cl",
-        },
-        {
-            "name": "Biblioteca Norte",
-            "address": "Calle Norte 250",
-            "phone": "+56229876543",
-            "email": "norte@biblioteca.cl",
-        },
-        {
-            "name": "Biblioteca Sur",
-            "address": "Av. Sur 500",
-            "phone": "+56221112223",
-            "email": "sur@biblioteca.cl",
-        },
-    ]
-    bibliotecas = []
-    for data in bibliotecas_data:
-        bib, _ = get_or_create(Biblioteca, name=data["name"], defaults=data)
-        bibliotecas.append(bib)
+    instance = model(**{field: value, **(defaults or {})})
+    db.session.add(instance)
+    db.session.flush()
+    return instance, True
 
-    # ---------- 3 Usuarios ----------
-    usuarios_data = [
-        {
-            "rut": "12345678-9",
-            "name": "Juan",
-            "username": "juanp",
-            "phone": "+56912345678",
-            "email": "juan@example.com",
-            "address": "Av. Siempre Viva 123",
-            "password_hash": generate_password_hash("password123"),
-        },
-        {
-            "rut": "98765432-1",
-            "name": "María",
-            "username": "mariag",
-            "phone": "+56987654321",
-            "email": "maria@example.com",
-            "address": "Calle Falsa 456",
-            "password_hash": generate_password_hash("password123"),
-        },
-        {
-            "rut": "11223344-5",
-            "name": "Pedro",
-            "username": "pedrol",
-            "phone": "+56911223344",
-            "email": "pedro@example.com",
-            "address": "Av. Libertad 789",
-            "password_hash": generate_password_hash("password123"),
-        },
-    ]
-    usuarios = []
-    for data in usuarios_data:
-        user, _ = get_or_create(Usuario, username=data["username"], defaults=data)
-        usuarios.append(user)
 
-    # ---------- Asignaciones ----------
-    asignaciones_data = [
-        (usuarios[0], roles[0], bibliotecas[0]),
-        (usuarios[1], roles[1], bibliotecas[1]),
-        (usuarios[2], roles[2], bibliotecas[2]),
-    ]
-    for usuario, rol, biblioteca in asignaciones_data:
-        get_or_create(
-            Asignacion,
-            usuario_id=usuario.id,
-            biblioteca_id=biblioteca.id,
-            defaults={"rol_id": rol.id},
-        )
+def ensure_user(*, rut, name, username, email, password, phone, address, is_admin=False):
+    user, created = get_or_create(
+        Usuario,
+        {"username": username},
+        {
+            "rut": rut,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "address": address,
+            "is_admin": is_admin,
+            # Se establece abajo solo al crear; nunca se sobrescribe una
+            # contraseña existente al volver a ejecutar el seed.
+            "password_hash": "placeholder",
+        },
+    )
+    if created:
+        user.set_password(password)
+    else:
+        # Mantiene actualizados los permisos del usuario reservado de prueba,
+        # pero no reemplaza su contraseña si ya fue cambiada manualmente.
+        user.is_admin = is_admin
+    return user
 
-    # ---------- 3 Editoriales ----------
-    editoriales_data = [
-        "Editorial Planeta",
-        "Penguin Random House",
-        "Editorial Anagrama",
-    ]
-    editoriales = []
-    for nombre in editoriales_data:
-        ed, _ = get_or_create(Editorial, nombre=nombre)
-        editoriales.append(ed)
 
-    # ---------- 2 Autores ----------
-    autores_data = [
-        "Gabriel García Márquez",
-        "Isabel Allende",
-    ]
-    autores = []
-    for nombre in autores_data:
-        autor, _ = get_or_create(Autor, nombre=nombre)
-        autores.append(autor)
+def run_seed():
+    with app.app_context():
+        try:
+            # Roles: los endpoints comparan estos nombres en minúsculas.
+            rol_bibliotecario, _ = get_or_create_ci(Rol, "name", "bibliotecario")
+            rol_lector, _ = get_or_create_ci(Rol, "name", "lector")
+            rol_asistente, _ = get_or_create_ci(Rol, "name", "asistente")
+            # Varias rutas hacen búsquedas exactas como name="bibliotecario".
+            # Normalizamos los nombres existentes para que esas búsquedas funcionen.
+            rol_bibliotecario.name = "bibliotecario"
+            rol_lector.name = "lector"
+            rol_asistente.name = "asistente"
 
-    # ---------- 10 Libros ----------
-    libros_data = [
-        {
-            "isbn": "9780307474728",
-            "title": "Cien años de soledad",
-            "year_publication": 1967,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[0].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9780060883287",
-            "title": "La casa de los espíritus",
-            "year_publication": 1982,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[1].id,
-            "autores": [autores[1]],
-        },
-        {
-            "isbn": "9788437604947",
-            "title": "Crónica de una muerte anunciada",
-            "year_publication": 1981,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[2].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9788401242364",
-            "title": "El amor en los tiempos del cólera",
-            "year_publication": 1985,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[0].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9789507311192",
-            "title": "Eva Luna",
-            "year_publication": 1987,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[1].id,
-            "autores": [autores[1]],
-        },
-        {
-            "isbn": "9780307389732",
-            "title": "El otoño del patriarca",
-            "year_publication": 1975,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[2].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9780061120092",
-            "title": "Paula",
-            "year_publication": 1994,
-            "clasificacion": "Memorias",
-            "editorial_id": editoriales[0].id,
-            "autores": [autores[1]],
-        },
-        {
-            "isbn": "9788437604978",
-            "title": "Relato de un náufrago",
-            "year_publication": 1970,
-            "clasificacion": "Crónica",
-            "editorial_id": editoriales[1].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9788401352356",
-            "title": "La ciudad y los perros",
-            "year_publication": 1963,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[2].id,
-            "autores": [autores[0]],
-        },
-        {
-            "isbn": "9789507311208",
-            "title": "De amor y de sombra",
-            "year_publication": 1984,
-            "clasificacion": "Novela",
-            "editorial_id": editoriales[0].id,
-            "autores": [autores[1]],
-        },
-    ]
-    libros = []
-    for data in libros_data:
-        autores_libro = data.pop("autores")
-        libro, created = get_or_create(Libro, isbn=data["isbn"], defaults=data)
-        if created:
-            libro.autores = autores_libro
-        libros.append(libro)
+            admin = ensure_user(
+                rut="11111111-1", name="Admin Demo",
+                username="admin_demo", email="admin@ailibrary.local",
+                password="AdminDemo123!", phone="+56911111111",
+                address="Dirección de prueba 101", is_admin=True,
+            )
+            bibliotecario = ensure_user(
+                rut="22222222-2", name="Bibliotecario Demo",
+                username="biblio_demo", email="bibliotecario@ailibrary.local",
+                password="BiblioDemo123!", phone="+56922222222",
+                address="Dirección de prueba 202",
+            )
+            lector = ensure_user(
+                rut="33333333-3", name="Lector Demo",
+                username="lector_demo", email="lector@ailibrary.local",
+                password="LectorDemo123!", phone="+56933333333",
+                address="Dirección de prueba 303",
+            )
 
-    # ---------- 3 Estados ----------
-    estados_data = ["Disponible", "Prestado", "Dañado"]
-    estados = []
-    for nombre in estados_data:
-        estado, _ = get_or_create(Estado, nombre=nombre)
-        estados.append(estado)
+            biblioteca, _ = get_or_create(
+                Biblioteca,
+                {"name": "Biblioteca Demo"},
+                {
+                    "address": "Av. de Prueba 123, Santiago",
+                    "phone": "+56223456789",
+                    "email": "biblioteca@ailibrary.local",
+                    "is_public": True,
+                    "is_active": True,
+                    "created_by": admin.id,
+                },
+            )
+            # Si la biblioteca ya existía, asegurar que esté utilizable.
+            biblioteca.is_public = True
+            biblioteca.is_active = True
 
-    # ---------- 20 Ejemplares ----------
-    for i in range(20):
-        libro = libros[i % len(libros)]
-        biblioteca = bibliotecas[i % len(bibliotecas)]
-        estado = estados[i % len(estados)]
-        creador = usuarios[i % len(usuarios)]
-        numero_ejemplar = (i // len(libros)) + 1
+            asignacion_biblio, _ = get_or_create(
+                Asignacion,
+                {"usuario_id": bibliotecario.id, "biblioteca_id": biblioteca.id},
+                {"rol_id": rol_bibliotecario.id, "is_owner": True},
+            )
+            asignacion_biblio.rol_id = rol_bibliotecario.id
+            asignacion_biblio.is_owner = True
 
-        get_or_create(
-            Ejemplar,
-            libro_id=libro.id,
-            numero_ejemplar=numero_ejemplar,
-            defaults={
-                "estado_id": estado.id,
-                "biblioteca_id": biblioteca.id,
-                "signatura": f"SIG-{libro.id:03d}-{i+1:03d}",
-                "created_by": creador.id,
-            },
-        )
+            asignacion_lector, _ = get_or_create(
+                Asignacion,
+                {"usuario_id": lector.id, "biblioteca_id": biblioteca.id},
+                {"rol_id": rol_lector.id, "is_owner": False},
+            )
+            asignacion_lector.rol_id = rol_lector.id
+            asignacion_lector.is_owner = False
 
-    db.session.commit()
-    print("✅ Seeds ejecutados correctamente (idempotente).")
+            editorial, _ = get_or_create_ci(Editorial, "nombre", "Editorial Demo")
+            autor, _ = get_or_create_ci(Autor, "nombre", "Autora de Prueba")
+
+            libro, _ = get_or_create(
+                Libro,
+                {"isbn": "9780306406157"},
+                {
+                    "title": "Libro de Prueba para AiLibrary",
+                    "year_publication": 2024,
+                    "clasificacion": "Tecnología",
+                    "editorial_id": editorial.id,
+                    "is_complete": True,
+                },
+            )
+            if autor not in libro.autores:
+                libro.autores.append(autor)
+
+            # Estos nombres son usados literalmente por la lógica de préstamos
+            # y por la baja lógica de ejemplares.
+            estados = {}
+            for nombre in ("Disponible", "Prestado", "Dañado", "De baja"):
+                estado, _ = get_or_create_ci(Estado, "nombre", nombre)
+                estados[nombre.lower()] = estado
+
+            # Dos copias disponibles para poder probar varios préstamos.
+            for numero in (1, 2):
+                get_or_create(
+                    Ejemplar,
+                    {
+                        "libro_id": libro.id,
+                        "biblioteca_id": biblioteca.id,
+                        "numero_ejemplar": numero,
+                    },
+                    {
+                        "estado_id": estados["disponible"].id,
+                        "signatura": f"TEC-DEMO-{numero:03d}",
+                        "created_by": bibliotecario.id,
+                    },
+                )
+
+            db.session.commit()
+            print("Seed completado.")
+            print("Usuarios de prueba:")
+            print("  admin@ailibrary.local / AdminDemo123!")
+            print("  bibliotecario@ailibrary.local / BiblioDemo123!")
+            print("  lector@ailibrary.local / LectorDemo123!")
+            print(f"Biblioteca: id={biblioteca.id}; libro ISBN={libro.isbn}")
+            print("Ejecuta 'flask routes' para ver las rutas registradas.")
+        except Exception:
+            db.session.rollback()
+            raise
+
+
+if __name__ == "__main__":
+    run_seed()
