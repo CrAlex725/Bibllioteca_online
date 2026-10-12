@@ -15,7 +15,7 @@ from routes.editorials import editorial_bp
 from routes.prestamos import prestamos_bp
 from routes.asignaciones import asignaciones_bp
 
-load_dotenv()
+load_dotenv(override=False)
 
 app = Flask(__name__)
 
