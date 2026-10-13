@@ -1,9 +1,11 @@
 def normalizar_isbn(isbn):
     if not isbn:
         return None
-    return isbn.replace("-","").replace(" ","").strip()
+    limpio = isbn.replace("-","").replace(" ","").strip()
+    return limpio if limpio else None
 
 def normalizar_rut(rut):
     if not rut:
         return None
-    return rut.replace("-","").replace(" ","").replace(".","") .strip()
+    limpio = rut.replace("-", "").replace(".", "").replace(" ", "").strip()
+    return limpio if limpio else None
