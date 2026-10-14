@@ -57,7 +57,11 @@ class Usuario(db.Model):
         return self.es_admin() or self.es_bibliotecario()
     
     def perfil_completo(self):
-        if not self.rut or not self.phone or not self.address:
+        if not self.rut or not self.rut.strip():
+            return False
+        if not self.phone or not self.phone.strip():
+            return False
+        if not self.address or not self.address.strip():
             return False
         return True
     
