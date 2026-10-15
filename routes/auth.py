@@ -19,6 +19,9 @@ def register():
     if not email or not username or not name or not password:
         return jsonify({"error":"Falta uno de los datos"}), 400
     
+    if email.strip() == "" or username.strip() == "" or name.strip() == "" or password.strip() == "":
+        return jsonify({"error":"Campos invalidos"}), 400
+    
     if Usuario.query.filter_by(email=email).first():
         return jsonify({"error":"El Correo ya existe en la base de datos"}), 409
     
@@ -45,6 +48,9 @@ def login():
     
     if not email or not password:
         return jsonify({"error":"El Correo y la contraseña deben completarse"}), 400
+    
+    if email.strip() == "" or password.strip() == "":
+        return jsonify({"error":"El Correo y la contraseña deben ser campos validos"}), 400
     
     # si encuentro el correo
     usuario =  Usuario.query.filter_by(email=email).first()
