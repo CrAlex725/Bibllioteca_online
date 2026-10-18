@@ -1,7 +1,9 @@
 from models import (Usuario,Libro, Editorial, Autor, libro_autor)
 from extensions import db
+from unittest.mock import patch
+from sqlalchemy.exc import IntegrityError
 
-# books/<isbn>
+# GET books/<isbn>
 def test_books_informacion_del_libro_con_isbn_no_encontrada(client):
     isbn = "0788471532688"
     
@@ -47,7 +49,7 @@ def test_books_informacion_del_libro_con_token(client, libro_de_prueba, usuario_
     assert "created_at" in data
     assert "is_complete" in data
     
-# books/
+# GET books/
 def test_books_year_string(client):
     year = "dos_mil_dos"
     
@@ -129,4 +131,159 @@ def test_books_argumento_con_caracter_especial(client, libro_de_prueba):
     data = resp.get_json()
     assert resp.status_code == 200
     assert len(data) == 1
+    
+# POST books/ sin permiso
+def test_books_post_sin_permiso(client, token_usuario_comun):
+    resp = client.post('/books', 
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["Nuevo Autor"],
+            "is_complete": True
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "El Usuario No tiene Permiso para agregar Libros"
+    
+def test_books_post_sin_body(client, token_usuario_comun):
+    resp = client.post('/books', 
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON Invalido o vacío"
+    
+def test_books_post_autores_Invalidos(client, token_usuario_comun):
+    resp = client.post('/books',
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": "Nuevo Autor",
+            "is_complete": True
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "autores debe ser una lista"
+    
+def test_books_post_solo_autores_en_lista(client, token_usuario_comun):
+    resp = client.post('/books',
+        json={
+            "autores": ["Nuevo Autor"],
+            "is_complete": True
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Todos los campos mencionados son obligatorios"
+    
+def test_books_post_is_complete_booleano(client, token_usuario_comun):
+    resp = client.post('/books', 
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["Nuevo Autor"],
+            "is_complete": "string"
+        },
+    headers={
+        "Authorization": f"Bearer {token_usuario_comun}"
+    })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "is_complete debe ser booleano"
+    
+def test_books_post_usuario_inexistente(client, usuario_de_prueba, token_usuario_comun, app):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.post('/books', 
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["Nuevo Autor"],
+            "is_complete": True
+        },
+    headers={
+        "Authorization": f"Bearer {token_usuario_comun}"
+    })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario no existe"
+    
+def test_books_post_libro_ya_existe(client, token_admin, libro_de_prueba):
+    resp = client.post('/books', 
+        json={
+            "isbn": "9788471532688",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["Nuevo Autor"],
+            "is_complete": True
+        },
+    headers={
+        "Authorization": f"Bearer {token_admin}"
+    })
+    
+    assert resp.status_code == 409
+    assert "Ya existe" in resp.get_json()["error"]
+    
+def test_books_post_integrity_error(client, token_admin):
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        resp = client.post('/books',
+            json={
+                "isbn": "9780123456789",
+                "title": "Nuevo Libro",
+                "editorial": "Nueva Editorial",
+                "autores": ["Nuevo Autor"],
+                "is_complete": True
+            },
+            headers={
+                "Authorization":f"Bearer {token_admin}"
+            })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Algo salió mal en la creación del libro"
+    
+def test_books_post_libro_creado(client, token_admin, app):
+    resp = client.post('/books',
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["Nuevo Autor1","Nuevo Autor2"],
+            "is_complete": True
+        },
+        headers={
+            "Authorization":f"Bearer {token_admin}"
+        })
+    data = resp.get_json()
+    assert resp.status_code == 201, resp.get_data(as_text=True)
+    lista_autores = [f["nombre"] for f in data["autores"]]
+    
+    with app.app_context():
+        assert Libro.query.count() == 1
+        assert Autor.query.count() == 2
+        assert Editorial.query.count() == 1
+        
+    assert data["isbn"] == "9780123456789"
+    assert data["editorial"]["nombre"] == "Nueva Editorial"
+    assert "Nuevo Autor1" in lista_autores
+    assert "Nuevo Autor2" in lista_autores
     

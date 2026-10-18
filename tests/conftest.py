@@ -20,6 +20,7 @@ def app():
     with flask_app.app_context():
         db.create_all()
         yield flask_app
+        db.session.rollback()
         db.session.remove()
         db.drop_all()
 
@@ -52,7 +53,45 @@ def usuario_de_prueba(app):
             'address' : usuario.address,
             'password' : "123456789"
         }
+    
+@pytest.fixture
+def token_usuario_comun(client, usuario_de_prueba):
+    resp_user = client.post('/auth/login', json={
+            "email": usuario_de_prueba["email"],
+            "password": usuario_de_prueba["password"]
+        })
+    return resp_user.get_json()["token"]
+        
+@pytest.fixture
+def usuario_de_prueba_admin(app):
+    with app.app_context():
+        usuario = Usuario(
+            email = "ab.cdef.123@gmail.com",
+            username = "abcdefghij",
+            name = "Abcdefghij",
+            rut = "19.234.444-k",
+            phone = "+56987654321",
+            address = "Calle 1",
+            is_admin = True
+        )
+        usuario.set_password("123456789")
+        db.session.add(usuario)
+        db.session.commit()
+    
+        return {
+            'id': usuario.id,
+            'email': usuario.email,
+            'password' : "123456789"
+        }
 
+@pytest.fixture
+def token_admin(client, usuario_de_prueba_admin):
+    resp_user = client.post('/auth/login', json={
+            "email": usuario_de_prueba_admin["email"],
+            "password": usuario_de_prueba_admin["password"]
+        })
+    return resp_user.get_json()["token"]
+        
 @pytest.fixture
 def libro_de_prueba(app):
     with app.app_context():
