@@ -482,7 +482,6 @@ def test_books_put_completo(client, token_admin, libro_de_prueba, app):
     assert data["clasificacion"] == "Nueva Clasificacion"
     assert data["autores"][0]["id"] == autors
     
-    
 def test_books_put_datos_parciales(client, token_admin, libro_de_prueba, app):
     resp = client.put(f'/books/{libro_de_prueba}',
         json={
@@ -616,3 +615,65 @@ def test_books_put_isbn_complete_cambiar_complete(client, app, libro_de_prueba, 
         libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
         assert libro.is_complete is True
     
+# GET books/resolver-isbn
+def test_books_get_resolver_isbn_usuario_inexistente(client, usuario_de_prueba, token_usuario_comun, app, libro_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+    
+    resp = client.get(f'/books/resolver-isbn/{libro_de_prueba}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_books_get_resolver_isbn_no_admin(client, token_usuario_comun, libro_de_prueba):
+    resp = client.get(f'/books/resolver-isbn/{libro_de_prueba}',
+            headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "no tienes permiso para realizar esta accion"
+    
+def test_books_get_resolver_isbn_existente_en_db(client, token_admin,libro_de_prueba):
+    resp = client.get(f'/books/resolver-isbn/{libro_de_prueba}',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 200
+    assert resp.get_json()["exists"] == True
+    assert resp.get_json()["source"] == "db"
+    
+def test_books_get_resolver_isbn_existente_en_api_externa(client, token_admin):
+    with patch('routes.books.buscar_por_isbn', return_value={
+        "isbn": "9788420447568",
+        "title": "Libro Externo",
+        "autores": ["Autor Externo"],
+        "editorial": "Editorial Externa",
+        "year_publication": 2020
+    }):
+        resp = client.get('/books/resolver-isbn/9788420447568',
+            headers={
+                "Authorization": f"Bearer {token_admin}"
+            })
+        
+    assert resp.status_code == 200
+    assert resp.get_json()["exists"] == False
+    assert resp.get_json()["source"] == "open_library"
+    assert resp.get_json()["datos_propuestos"]["title"] == "Libro Externo"
+    
+def test_books_get_resolver_isbn_inexistente_en_db_y_en_api_externa(client, token_admin):
+    with patch('routes.books.buscar_por_isbn', return_value=None):
+        resp = client.get('/books/resolver-isbn/0000000000000',
+            headers={
+                "Authorization": f"Bearer {token_admin}"
+            })
+    
+    assert resp.status_code == 200
+    assert resp.get_json()["exists"] == False
+    assert resp.get_json()["source"] == "manual"
