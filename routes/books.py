@@ -8,7 +8,7 @@ from extensions import db
 
 books_bp = Blueprint('books', __name__, url_prefix='/books')
 
-@books_bp.route('/resolver-isbn/<string:isbn>')
+@books_bp.route('/resolver-isbn/<string:isbn>', methods=['GET'])
 @jwt_required()
 def consulta_isbn(isbn):
     user_id = int(get_jwt_identity())

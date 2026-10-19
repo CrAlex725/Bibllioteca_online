@@ -554,3 +554,65 @@ def test_books_delete_completo(client, token_admin, libro_de_prueba, app):
     assert resp.status_code == 204
     with app.app_context():
         assert Libro.query.filter_by(isbn=libro_de_prueba).first() is None
+    
+# PUT books/<isbn>/complete
+def test_books_put_isbn_complete_usuario_inexistente(client, usuario_de_prueba, token_usuario_comun, app, libro_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+    
+    resp = client.put(f'/books/{libro_de_prueba}/complete',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_books_put_isbn_complete_no_admin(client, token_usuario_comun, libro_de_prueba):
+    resp = client.put(f'/books/{libro_de_prueba}/complete',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "no tienes permiso para realizar esta accion"
+    
+def test_books_put_isbn_complete_libro_inexistente(client ,token_admin):
+    resp = client.put(f'/books/0000000000000/complete',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+
+    assert resp.status_code == 404
+    assert "NO existe" in resp.get_json()["error"]
+    
+def test_books_put_isbn_complete_libro_ya_completado(client, token_admin, libro_de_prueba):
+    resp = client.put(f'/books/{libro_de_prueba}/complete',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El libro Ya está completo"
+    
+def test_books_put_isbn_complete_cambiar_complete(client, app, libro_de_prueba, token_admin):
+    with app.app_context():
+        libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
+        libro.is_complete = False
+        db.session.commit()
+    
+    resp = client.put(f'/books/{libro_de_prueba}/complete',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 200
+
+    data = resp.get_json()
+    assert data["is_complete"] is True
+    with app.app_context():
+        libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
+        assert libro.is_complete is True
+    
