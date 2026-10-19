@@ -207,12 +207,24 @@ def actualizar_libro(isbn):
         return jsonify({"error":f"El libro con isbn: {isbn} NO existe"}),404
     
     if 'title' in data:
+        if data['title'].strip() == "":
+            return jsonify({"error":"El argumento titulo debe ser valido"}), 400
         libro.title = data['title']
     
     if 'year_publication' in data:
-        libro.year_publication = data['year_publication']
+        try:
+            year = int(data['year_publication'])
+        except (TypeError, ValueError):
+            return jsonify({"error": "El argumento año de publicacion debe ser valido"}), 400
+
+        if year < 1 or year > 9999:
+            return jsonify({"error": "El argumento año de publicacion debe ser valido"}), 400
+
+        libro.year_publication = year
         
     if 'clasificacion' in data:
+        if data['clasificacion'].strip() == "":
+            return jsonify({"error":"El argumento clasificacion debe ser valido"}), 400
         libro.clasificacion = data['clasificacion']
     
     if 'editorial_id' in data:
@@ -223,7 +235,7 @@ def actualizar_libro(isbn):
         
     if 'autor_ids' in data:
         if not isinstance(data['autor_ids'], list):
-            return jsonify({"error":"aitor_ids debe ser una lista"}), 400
+            return jsonify({"error":"autor_ids debe ser una lista"}), 400
         
         autores_obj = []
         for autor_id in data['autor_ids']:

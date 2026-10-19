@@ -287,3 +287,215 @@ def test_books_post_libro_creado(client, token_admin, app):
     assert "Nuevo Autor1" in lista_autores
     assert "Nuevo Autor2" in lista_autores
     
+# PUT books/ sin permiso
+def test_books_put_json_sin_body(client, token_usuario_comun, libro_de_prueba):
+    resp = client.put(f'/books/{libro_de_prueba}', 
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON Invalido o vacío"
+    
+def test_books_put_usuario_inexistente(client, usuario_de_prueba, token_usuario_comun, app, libro_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"",
+            "year_publication":"",
+            "clasificacion":"",
+            "editorial_id":"",
+            "autor_ids":[""]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_books_put_usuario_no_admin(client, token_usuario_comun, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"",
+            "year_publication":"",
+            "clasificacion":"",
+            "editorial_id":"",
+            "autor_ids":[""]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "no tienes permiso para realizar esta accion"
+    
+def test_books_put_usuario_libro_inexistente(client, token_admin):
+        
+    resp = client.put('/books/0000000000000',
+        json={
+            "title" :"",
+            "year_publication":"",
+            "clasificacion":"",
+            "editorial_id":"",
+            "autor_ids":[""]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert "NO existe" in resp.get_json()["error"]
+    
+def test_books_put_usuario_argumentos_vacios(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"     ",
+            "year_publication": 2000,
+            "clasificacion":"     ",
+            "editorial_id": 1,
+            "autor_ids":[1]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert "debe ser valido" in resp.get_json()["error"]
+    
+def test_books_put_year_no_numerico(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "f",
+            "clasificacion":"Nueva Clasificacion",
+            "editorial_id": "1",
+            "autor_ids":["1", "2"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert "publicacion debe ser valido" in resp.get_json()["error"]
+    
+def test_books_put_clasificacion_vacia(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "2001",
+            "clasificacion":"     ",
+            "editorial_id": "1",
+            "autor_ids":["1", "2"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert "clasificacion debe ser valido" in resp.get_json()["error"]
+    
+def test_books_put_editorial_id_inexistente(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "2001",
+            "clasificacion":"Nueva Clasificacion",
+            "editorial_id": "100",
+            "autor_ids":["1", "2"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Editorial No existe"
+    
+def test_books_put_autores_ids_no_en_lista(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "2001",
+            "clasificacion":"Nueva Clasificacion",
+            "editorial_id": "1",
+            "autor_ids": "1",
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "autor_ids debe ser una lista"
+    
+def test_books_put_autores_ids_inexistentes(client, token_admin, libro_de_prueba):
+        
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "2001",
+            "clasificacion":"Nueva Clasificacion",
+            "editorial_id": "1",
+            "autor_ids": ["100"],
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El Autor NO Existe"
+    
+def test_books_put_completo(client, token_admin, libro_de_prueba, app):
+    with app.app_context():
+        autor = Autor(
+            nombre = "Cain"
+        )
+        db.session.add(autor)
+        db.session.commit()
+        autors = autor.id
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "year_publication": "2001",
+            "clasificacion":"Nueva Clasificacion",
+            "editorial_id": "1",
+            "autor_ids": [autors],
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data) == 8
+    assert data["title"] == "Nuevo Titulo"
+    assert data["clasificacion"] == "Nueva Clasificacion"
+    assert data["autores"][0]["id"] == autors
+    
+    
+def test_books_put_datos_parciales(client, token_admin, libro_de_prueba, app):
+    resp = client.put(f'/books/{libro_de_prueba}',
+        json={
+            "title" :"Nuevo Titulo",
+            "clasificacion":"Nueva Clasificacion",
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data) == 8
+    assert data["title"] == "Nuevo Titulo"
+    assert data["clasificacion"] == "Nueva Clasificacion"
+    
