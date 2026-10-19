@@ -499,3 +499,58 @@ def test_books_put_datos_parciales(client, token_admin, libro_de_prueba, app):
     assert data["title"] == "Nuevo Titulo"
     assert data["clasificacion"] == "Nueva Clasificacion"
     
+# DELETE books/<isbn>
+def test_books_delete_usuario_no_exite(client, usuario_de_prueba, token_usuario_comun, app, libro_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+    
+    resp = client.delete(f'/books/{libro_de_prueba}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_books_delete_usaurio_no_admin(client, token_usuario_comun, libro_de_prueba):
+    resp = client.delete(f'/books/{libro_de_prueba}',
+            headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "no tienes permiso para realizar esta accion"
+    
+def test_books_delete_libro_inexistente(client, token_admin):
+    resp = client.delete('/books/0000000000000',
+            headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert "NO existe" in resp.get_json()["error"]
+    
+def test_books_delete_integrity_error(client, token_admin, libro_de_prueba):
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        resp = client.delete(f'/books/{libro_de_prueba}',
+            headers={
+                "Authorization":f"Bearer {token_admin}"
+            })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Algo salió mal en la eliminación del libro"
+    
+def test_books_delete_completo(client, token_admin, libro_de_prueba, app):
+    resp = client.delete(f'/books/{libro_de_prueba}',
+            headers={
+                "Authorization": f"Bearer {token_admin}"
+            })
+    
+    assert resp.status_code == 204
+    with app.app_context():
+        assert Libro.query.filter_by(isbn=libro_de_prueba).first() is None
