@@ -2,6 +2,7 @@ from models import (Usuario,Libro, Editorial, Autor, libro_autor)
 from extensions import db
 from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 # GET books/<isbn>
 def test_books_informacion_del_libro_con_isbn_no_encontrada(client):
@@ -174,6 +175,22 @@ def test_books_post_autores_Invalidos(client, token_usuario_comun):
     
     assert resp.status_code == 400
     assert resp.get_json()["error"] == "autores debe ser una lista"
+    
+def test_books_post_autores_vacios_y_duplicados(client, token_admin, app):
+    resp = client.post('/books',
+        json={
+            "isbn": "9780123456789",
+            "title": "Nuevo Libro",
+            "editorial": "Nueva Editorial",
+            "autores": ["", "  ", "Autor X", "autor x", "AUTOR X"],
+            "is_complete": True
+        },
+        headers={"Authorization": f"Bearer {token_admin}"})
+    
+    assert resp.status_code == 201, resp.get_data(as_text=True)
+    with app.app_context():
+        assert Autor.query.count() == 1
+    assert len(resp.get_json()["autores"]) == 1
     
 def test_books_post_solo_autores_en_lista(client, token_usuario_comun):
     resp = client.post('/books',
@@ -386,6 +403,18 @@ def test_books_put_year_no_numerico(client, token_admin, libro_de_prueba):
     
     assert resp.status_code == 400
     assert "publicacion debe ser valido" in resp.get_json()["error"]
+    
+def test_books_put_year_invalido(client, token_admin, libro_de_prueba):
+    year = (datetime.now().year)+2
+    resp = client.put(f'/books/{libro_de_prueba}', 
+        json={
+            'year_publication': year
+        },
+        headers={
+            "Authorization":f"Bearer {token_admin}"
+        })
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El argumento año de publicacion debe ser valido"
     
 def test_books_put_clasificacion_vacia(client, token_admin, libro_de_prueba):
         

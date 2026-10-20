@@ -5,6 +5,7 @@ from helpers import normalizar_isbn
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.openlibrary import buscar_por_isbn
 from extensions import db
+from datetime import datetime
 
 books_bp = Blueprint('books', __name__, url_prefix='/books')
 
@@ -211,13 +212,15 @@ def actualizar_libro(isbn):
             return jsonify({"error":"El argumento titulo debe ser valido"}), 400
         libro.title = data['title']
     
+    actual_year = datetime.now().year
+    
     if 'year_publication' in data:
         try:
             year = int(data['year_publication'])
         except (TypeError, ValueError):
             return jsonify({"error": "El argumento año de publicacion debe ser valido"}), 400
 
-        if year < 1 or year > 9999:
+        if year < 1 or year > actual_year:
             return jsonify({"error": "El argumento año de publicacion debe ser valido"}), 400
 
         libro.year_publication = year
