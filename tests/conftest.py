@@ -32,8 +32,8 @@ def client(app):
 def usuario_de_prueba(app):
     with app.app_context():
         usuario = Usuario(
-            email = "ab.cdef.123@gmail.com",
-            username = "abcdefghij",
+            email = "ab.cdef.123@user.com",
+            username = "abcedfghij",
             name = "Abcdefghij",
             rut = "19.234.444-k",
             phone = "+56987654321",
@@ -66,10 +66,10 @@ def token_usuario_comun(client, usuario_de_prueba):
 def usuario_de_prueba_admin(app):
     with app.app_context():
         usuario = Usuario(
-            email = "ab.cdef.123@gmail.com",
-            username = "abcdefghij",
+            email = "ab.cdef.123@admin.com",
+            username = "lfcdefghij",
             name = "Abcdefghij",
-            rut = "19.234.444-k",
+            rut = "20.234.444-k",
             phone = "+56987654321",
             address = "Calle 1",
             is_admin = True
@@ -93,6 +93,92 @@ def token_admin(client, usuario_de_prueba_admin):
     return resp_user.get_json()["token"]
         
 @pytest.fixture
+def roles_de_prueba(app):
+    with app.app_context():
+        roles = {}
+        for nombre in ["bibliotecario", "lector", "asistente"]:
+            rol = Rol(name=nombre)
+            db.session.add(rol)
+            roles[nombre] = rol.id
+        db.session.commit()
+        
+        return roles  # {"bibliotecario": 1, "lector": 2, "asistente": 3}
+        
+@pytest.fixture
+def usuario_de_prueba_bibliotecario(app):
+    with app.app_context():
+        usuario = Usuario(
+            email="biblio@test.com",
+            username="biblio",
+            name="Bibliotecario",
+            rut="22.222.222-2",
+            phone="+56911111111",
+            address="Calle Biblio 1"
+        )
+        usuario.set_password("1234567890")
+        db.session.add(usuario)
+        db.session.commit()
+        
+        return {
+            "id": usuario.id,
+            "username": usuario.username,
+            "name": usuario.name,
+            "email": usuario.email,
+            "password": "1234567890"
+        }
+        
+@pytest.fixture
+def token_bibliotecario(client, usuario_de_prueba_bibliotecario, asignacion_bibliotecario_de_prueba):
+    resp = client.post('/auth/login', 
+        json={
+            "email": usuario_de_prueba_bibliotecario["email"],
+            "password": usuario_de_prueba_bibliotecario["password"]
+        })
+    return resp.get_json()["token"]
+    
+@pytest.fixture
+def biblioteca_de_prueba(app, usuario_de_prueba_bibliotecario):
+    with app.app_context():
+        biblioteca = Biblioteca(
+            name="Biblioteca Test",
+            address = "address calle 1",
+            phone = "922749027",
+            email = "biblio_test@test.com",
+            created_by=usuario_de_prueba_bibliotecario["id"]
+        )
+        db.session.add(biblioteca)
+        db.session.commit()
+    
+        return {
+            "id": biblioteca.id,
+            "name" :biblioteca.name,
+            "address" : biblioteca.address,
+            "phone" : biblioteca.phone,
+            "email" : biblioteca.email,
+            "created_by": usuario_de_prueba_bibliotecario["id"],
+            "is_public" : True
+        }
+    
+@pytest.fixture
+def asignacion_bibliotecario_de_prueba(app, roles_de_prueba, usuario_de_prueba_bibliotecario, biblioteca_de_prueba):
+    with app.app_context():
+        asignacion = Asignacion(
+        usuario_id = usuario_de_prueba_bibliotecario["id"],
+        rol_id = roles_de_prueba["bibliotecario"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        is_owner=True
+        )
+        db.session.add(asignacion)
+        db.session.commit()
+    
+        return {
+            "id": asignacion.id,
+            "usuario_id": asignacion.usuario_id,
+            "rol_id": asignacion.rol_id,
+            "biblioteca_id": asignacion.biblioteca_id
+        }
+    
+@pytest.fixture
 def libro_de_prueba(app):
     with app.app_context():
         editorial = Editorial(nombre="Zig-Zag")
@@ -115,3 +201,27 @@ def libro_de_prueba(app):
         db.session.commit()
         
         return libro.isbn
+    
+@pytest.fixture
+def biblioteca_privada_de_prueba(app, usuario_de_prueba_bibliotecario):
+    with app.app_context():
+        biblioteca = Biblioteca(
+            name="Biblioteca privada Test",
+            address = "address calle 1",
+            phone = "922749027",
+            email = "biblio_test@test.com",
+            created_by=usuario_de_prueba_bibliotecario["id"],
+            is_public = False
+        )
+        db.session.add(biblioteca)
+        db.session.commit()
+        
+        return {
+            "id": biblioteca.id,
+            "name" :biblioteca.name,
+            "address" : biblioteca.address,
+            "phone" : biblioteca.phone,
+            "email" : biblioteca.email,
+            "created_by": usuario_de_prueba_bibliotecario["id"],
+            "is_public" : False
+        }
