@@ -99,10 +99,11 @@ def roles_de_prueba(app):
         for nombre in ["bibliotecario", "lector", "asistente"]:
             rol = Rol(name=nombre)
             db.session.add(rol)
+            db.session.flush()
             roles[nombre] = rol.id
         db.session.commit()
         
-        return roles  # {"bibliotecario": 1, "lector": 2, "asistente": 3}
+        return roles
         
 @pytest.fixture
 def usuario_de_prueba_bibliotecario(app):

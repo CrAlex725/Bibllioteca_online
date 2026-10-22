@@ -1,4 +1,4 @@
-from models import (Biblioteca, Usuario)
+from models import (Biblioteca, Usuario, Asignacion)
 from extensions import db
 
 # GET libraries/
@@ -92,3 +92,49 @@ def test_libraries_get_id_completo(client, token_usuario_comun, biblioteca_de_pr
     assert data["estado_activo"] == True
     assert data["es_publica"] == True
     
+# GET libraries/mine
+def test_libraries_get_mine_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.get('/libraries/mine',
+        headers={
+            "Authorization" : f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_libraries_get_mine_consulta_exitosa(client, app, 
+        token_usuario_comun, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    with app.app_context():
+        asignacion = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"],
+            biblioteca_id = biblioteca_de_prueba["id"]
+        )
+        db.session.add(asignacion)
+        db.session.commit()
+        
+    resp = client.get('/libraries/mine',
+            headers={
+                "Authorization" : f"Bearer {token_usuario_comun}"
+            })
+        
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data[0]["id"] == biblioteca_de_prueba["id"]
+    
+    
+def test_libraries_get_mine_consulta_exitosa_sin_asignaciones(client, 
+        token_usuario_comun, biblioteca_de_prueba):
+    resp = client.get('/libraries/mine',
+            headers={
+                "Authorization" : f"Bearer {token_usuario_comun}"
+            })
+        
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data == []
