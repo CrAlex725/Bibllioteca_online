@@ -133,15 +133,29 @@ def actualizar_biblioteca(id):
         return jsonify({"error":"no tienes permiso para realizar esta accion"}), 403
     
     if 'name' in data:
+        if data['name'].strip() == "":
+            return jsonify({"error":"Dato de nombre invalido"}), 400
+        if data['name'] == biblioteca.name:
+            return jsonify({"error":"el nombre es el mismo que ya tenía"}), 400
         biblioteca.name = data['name']
     
     if 'address' in data:
+        if data['address'].strip() == "":
+            return jsonify({"error":"Dato de direccion invalido"}), 400
+        if data['address'] == biblioteca.address:
+            return jsonify({"error":"la direccion es la misma que ya tenía"}), 400
         biblioteca.address = data['address']
         
     if 'phone' in data:
+        if data['phone'].strip() == "":
+            return jsonify({"error":"Dato de telefono invalido"}), 400
+        if data['phone'] == biblioteca.phone:
+            return jsonify({"error":"el telefono es el mismo que ya tenía"}), 400
         biblioteca.phone = data['phone']
     
     if 'is_public' in data:
+        if not isinstance(data['is_public'], bool):
+            return jsonify({"error":"el valor debe ser bool"}), 400
         biblioteca.is_public = data['is_public']
         
     db.session.commit()
