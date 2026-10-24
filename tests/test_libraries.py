@@ -129,7 +129,6 @@ def test_libraries_get_mine_consulta_exitosa(client, app,
     assert resp.status_code == 200
     assert data[0]["id"] == biblioteca_de_prueba["id"]
     
-    
 def test_libraries_get_mine_consulta_exitosa_sin_asignaciones(client, 
         token_usuario_comun, biblioteca_de_prueba):
     resp = client.get('/libraries/mine',
@@ -550,3 +549,78 @@ def test_libraries_put_bibliotecario_multiples_datos(client, biblioteca_de_prueb
     assert data["direccion"] == "Nueva Direccion"
     assert data["telefono"] == "900044478"
     assert data["es_publica"] == False
+    
+# DELETE libraries/<id>
+def test_libraries_delete_sin_token(client, biblioteca_de_prueba):
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}')
+    
+    assert resp.status_code == 401
+
+def test_libraries_delete_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun, biblioteca_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}',
+        headers={
+            "Authorization":f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_libraries_delete_biblioteca_inexistente(client, token_usuario_comun):
+    resp = client.delete('/libraries/9999999',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La biblioteca NO existe"
+    
+def test_libraries_delete_biblioteca_inactiva(client, app, token_usuario_comun, biblioteca_de_prueba):
+    with app.app_context():
+        b = db.session.get(Biblioteca, biblioteca_de_prueba["id"])
+        b.is_active=False
+        db.session.commit()
+        
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La biblioteca NO existe"
+    
+def test_libraries_delete_usuario_sin_permiso(client, token_usuario_comun, biblioteca_de_prueba):
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "no tienes permiso para realizar esta accion"
+    
+def test_libraries_delete_usuario_admin(client, app, biblioteca_de_prueba, token_admin):
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 204
+    with app.app_context():
+        b = db.session.get(Biblioteca, biblioteca_de_prueba["id"])
+        assert b.is_active == False
+    
+def test_libraries_delete_usuario_bibliotecario(client, app, biblioteca_de_prueba, token_bibliotecario):
+    resp = client.delete(f'/libraries/{biblioteca_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 204
+    with app.app_context():
+        b = db.session.get(Biblioteca, biblioteca_de_prueba["id"])
+        assert b.is_active == False
+    
