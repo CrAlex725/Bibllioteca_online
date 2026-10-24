@@ -63,6 +63,37 @@ def token_usuario_comun(client, usuario_de_prueba):
     return resp_user.get_json()["token"]
         
 @pytest.fixture
+def usuario_de_prueba_perfil_incompleto(app):
+    with app.app_context():
+        usuario = Usuario(
+            email = "cd.abef.123@user.com",
+            username = "jihgfdecba",
+            name = "Jihgfdecba",
+        )
+        usuario.set_password("0123456789")
+        db.session.add(usuario)
+        db.session.commit()
+    
+        return {
+            'id': usuario.id,
+            'email': usuario.email,
+            'username' : usuario.username,
+            'name' : usuario.name,
+            # 'rut' : usuario.rut,
+            # 'phone' : usuario.phone,
+            # 'address' : usuario.address,
+            'password' : "0123456789"
+        }
+    
+@pytest.fixture
+def token_usuario_incompleto(client, usuario_de_prueba_perfil_incompleto):
+    resp_user = client.post('/auth/login', json={
+            "email": usuario_de_prueba_perfil_incompleto["email"],
+            "password": usuario_de_prueba_perfil_incompleto["password"]
+        })
+    return resp_user.get_json()["token"]
+    
+@pytest.fixture
 def usuario_de_prueba_admin(app):
     with app.app_context():
         usuario = Usuario(
