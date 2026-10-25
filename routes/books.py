@@ -12,6 +12,26 @@ books_bp = Blueprint('books', __name__, url_prefix='/books')
 @books_bp.route('/resolver-isbn/<string:isbn>', methods=['GET'])
 @jwt_required()
 def consulta_isbn(isbn):
+    """
+    Obtiene el detalle de un libro por ISBN.
+    Si el libro está en la base de datos, lo devuelve.
+    Si no, consulta Open Library y devuelve los datos propuestos.
+    Si no está en ninguno, devuelve el ISBN para carga manual.
+    ---
+    parameters:
+      - name: isbn
+        in: path
+        type: string
+        required: true
+        description: ISBN del libro (con o sin guiones)
+    responses:
+      200:
+        description: Existencia del libro
+      401:
+        description: Usuario no existe
+      403:
+        description: Usuario sin permiso
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -50,6 +70,27 @@ def consulta_isbn(isbn):
 
 @books_bp.route('', methods=['GET'])
 def libros():
+    """
+    Lista todos los libros del catálogo.
+    Permite filtrar por título, autor, editorial, categoría y año.
+    ---
+    parameters:
+      - name: Titulo
+        in: query
+        type: string
+        required: false
+        description: Filtro parcial por título
+      - name: Year
+        in: query
+        type: integer
+        required: false
+        description: Año de publicación exacto
+    responses:
+      200:
+        description: Lista de libros
+      400:
+        description: Año con formato inválido
+    """
     titulo = request.args.get('Titulo')
     autor = request.args.get('Autor')
     editorial = request.args.get('Editorial')
@@ -85,6 +126,49 @@ def libros():
 @books_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_libro():
+    """
+    Crea un nuevo libro. Requiere autenticación y permisos.
+    ---
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - isbn
+            - title
+            - editorial
+            - autores
+          properties:
+            isbn:
+              type: string
+            title:
+              type: string
+            editorial:
+              type: string
+            autores:
+              type: array
+              items:
+                type: string
+            year:
+              type: integer
+            clasificacion:
+              type: string
+            is_complete:
+              type: boolean
+    responses:
+      201:
+        description: Libro creado
+      400:
+        description: Datos inválidos
+      401:
+        description: Token faltante o usuario inexistente
+      403:
+        description: Sin permisos para crear libros
+      409:
+        description: ISBN duplicado o error de integridad
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -174,6 +258,23 @@ def crear_libro():
 @books_bp.route('/<string:isbn>', methods=['GET'])
 @jwt_required(optional=True)
 def libro_detalle(isbn):
+    """
+    Obtiene el detalle de un libro por ISBN.
+    Si hay token, devuelve la versión completa.
+    Si no hay token, devuelve la versión básica.
+    ---
+    parameters:
+      - name: isbn
+        in: path
+        type: string
+        required: true
+        description: ISBN del libro (con o sin guiones)
+    responses:
+      200:
+        description: Detalle del libro
+      404:
+        description: Libro no encontrado
+    """
     isbn_normalizado = normalizar_isbn(isbn)
     libro = Libro.query.filter_by(isbn=isbn_normalizado).first()
     if not libro:
@@ -187,6 +288,49 @@ def libro_detalle(isbn):
 @books_bp.route('/<string:isbn>', methods=['PUT'])
 @jwt_required()
 def actualizar_libro(isbn):
+    """
+    Actualiza un libro existente.
+    Requiere autenticación y permisos de administrador.
+    ---
+    parameters:
+      - name: isbn
+        in: path
+        type: string
+        required: true
+        description: ISBN del libro (con o sin guiones)
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            year_publication:
+              type: integer
+            clasificacion:
+              type: string
+            editorial_id:
+              type: integer
+            autor_ids:
+              type: array
+              items:
+                type: integer
+          description: actualizar libro existente en la db
+    responses:
+      200:
+        description: Actualización exitosa
+      400:
+        description: Argumento inválido
+      401:
+        description: Usuario inexistente
+      403:
+        description: Sin permisos para realizar la acción
+      404:
+        description: ISBN no encontrado
+      409:
+        description: Algo salió mal
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -254,6 +398,27 @@ def actualizar_libro(isbn):
 @books_bp.route('/<string:isbn>', methods=['DELETE'])
 @jwt_required()
 def eliminar_libro(isbn):
+    """
+    Eliminar Libro existente. Requiere autenticación y permiso
+    ---
+    parameters:
+      - name: ISBN
+        in: path
+        type: string
+        required: true
+        description: Isbn del libro (con o sin guiones)
+    responses:
+      204:
+        description: Eliminacion completa
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Sin permisos
+      404:
+        description: Libro No encontrado
+      409:
+        description: Algo salió mal
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -282,6 +447,28 @@ def eliminar_libro(isbn):
 @books_bp.route('/<string:isbn>/complete', methods=['PUT'])
 @jwt_required()
 def completar_libro(isbn):
+    """
+    Actualizar el estado del libro. 
+    De incompleto a completado
+    ---
+    parameters:
+      - name: isbn
+        in: path
+        type: string
+        required: true
+        description: ISBN del libro a completar
+    responses:
+      200:
+        description: Actualizacion completa
+      401:
+        description: usuario inexistente
+      403:
+        description: Sin permisos
+      404:
+        description: El libro no existe
+      409:
+        description: El libro ya se completó con anterioridad
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
