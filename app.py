@@ -25,10 +25,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.config['JWT_SECRET_KEY'] = os.environ['JWT_SECRET_KEY']
 
+swagger_template = {
+    "securityDefinitions": {
+        "Bearer": {
+            "type" :"apiKey",
+            "name" : "Authorization",
+            "in" : "header"
+        }
+    }
+}
+
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt.init_app(app)
-Swagger(app)
+Swagger(app, template=swagger_template)
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(books_bp)

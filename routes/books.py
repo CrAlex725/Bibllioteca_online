@@ -18,6 +18,8 @@ def consulta_isbn(isbn):
     Si no, consulta Open Library y devuelve los datos propuestos.
     Si no está en ninguno, devuelve el ISBN para carga manual.
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: isbn
         in: path
@@ -129,6 +131,8 @@ def crear_libro():
     """
     Crea un nuevo libro. Requiere autenticación y permisos.
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: body
         in: body
@@ -263,6 +267,8 @@ def libro_detalle(isbn):
     Si hay token, devuelve la versión completa.
     Si no hay token, devuelve la versión básica.
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: isbn
         in: path
@@ -292,6 +298,8 @@ def actualizar_libro(isbn):
     Actualiza un libro existente.
     Requiere autenticación y permisos de administrador.
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: isbn
         in: path
@@ -401,6 +409,8 @@ def eliminar_libro(isbn):
     """
     Eliminar Libro existente. Requiere autenticación y permiso
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: ISBN
         in: path
@@ -451,6 +461,8 @@ def completar_libro(isbn):
     Actualizar el estado del libro. 
     De incompleto a completado
     ---
+    security:
+      - Bearer: []
     parameters:
       - name: isbn
         in: path
