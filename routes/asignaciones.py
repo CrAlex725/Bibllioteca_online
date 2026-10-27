@@ -67,8 +67,6 @@ def asignaciones():
         except ValueError:
             return jsonify({"error":"el valor solicitado debe ser entero"}), 400
     
-    
-        
     if is_owner is not None:
         if is_owner.lower() in ("true","1"):
             query = query.filter(Asignacion.is_owner == True)
@@ -93,21 +91,19 @@ def una_asignacion(id):
     if not asignacion:
         return jsonify({"error":"La asignacion No existe"}), 404
     
-    if usuario.es_admin():
-        return jsonify(asignacion.to_dict()),200
+    if not usuario.es_admin():
+        bibliotecas =[
+            a.biblioteca_id for a in usuario.asignaciones
+            if a.rol.name.lower() in ["bibliotecario","asistente"]
+        ]
+        
+        if asignacion.biblioteca_id in bibliotecas:
+            return jsonify(asignacion.to_dict()), 200
+        
+        if asignacion.usuario_id != usuario.id:
+            return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
     
-    bibliotecas =[
-        a.biblioteca_id for a in usuario.asignaciones
-        if a.rol.name.lower() in ["bibliotecario","asistente"]
-    ]
-    
-    if asignacion.biblioteca_id in bibliotecas:
-        return jsonify(asignacion.to_dict()), 200
-    
-    if asignacion.usuario_id == usuario.id:
-        return jsonify(asignacion.to_dict()), 200
-    
-    return jsonify({"error":"La asignacion no existe"}), 404
+    return jsonify(asignacion.to_dict()), 200
 
 @asignaciones_bp.route('', methods=['POST'])
 @jwt_required()
