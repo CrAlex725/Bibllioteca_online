@@ -7,6 +7,46 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
+    """
+    Registrar Usuarios
+    ---
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - username
+            - name
+            - password
+          properties:
+            email:
+              type: string
+            username:
+              type: string
+            name:
+              type: string
+            password:
+              type: string
+            rut:
+              type: string
+            phone:
+              type: string
+            address:
+              type: string
+          description: |
+            Parametros requeridos y opcionales para crear un usuario
+            sin estos el usuario queda incompleto
+    responses:
+      201:
+        description: Usuario creado correctamente
+      400:
+        description: datos inválidos o faltantes
+      409:
+        description: Usuario o Correo ya existentes
+    """
     data = request.get_json(silent=True)
     if not data :
         return jsonify({"error":"JSON Invalido o vacío"}), 400
@@ -38,6 +78,32 @@ def register():
     
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """
+    Loguear Usuario existente
+    ---
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          description: contraseña y correo del usuario
+    responses:
+      200:
+        description: usuario logueado Correctamente
+      400:
+        description: Datos necesarios inválidos
+      401:
+        description: Usuario y/o contraseña incorrectos
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -64,6 +130,19 @@ def login():
 @auth_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def profile():
+    """
+    perfil del Usuario
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Perfil encontrado
+      401:
+        description: Token faltante o inválido
+      404:
+        description: Usuario No autorizado
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
