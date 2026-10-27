@@ -9,6 +9,20 @@ libraries_bp = Blueprint('libraries', __name__, url_prefix='/libraries')
 # GET /bibliotecas → lista pública.
 @libraries_bp.route('', methods=['GET'])
 def biblioteca():
+    """
+    Lista de librerías activas y publicas
+    No requiere autenticación
+    ---
+    parameters:
+      - name: address
+        in: query
+        required: false
+        type: string
+        description: direccion parcial a buscar
+    responses:
+      200:
+        description: Lista de librerías
+    """
     address = request.args.get('address')
     query = Biblioteca.query
     
@@ -22,6 +36,26 @@ def biblioteca():
 @libraries_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()
 def perfil_biblioteca(id):
+    """
+    Información Completa de una librería
+    requiere Autenticación
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id de la biblioteca
+    responses:
+      200:
+        description: Consulta exitosa
+      401:
+        description: El usuario ingresado NO existe
+      404:
+        description: La biblioteca No existe, no está dsponible, o no es publica
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     if not usuario:
@@ -44,6 +78,48 @@ def perfil_biblioteca(id):
 @libraries_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_biblioteca():
+    """
+    Crear biblioteca
+    Requiere Autenticación del Admin o usuario con perfil completo
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - address
+            - phone
+            - email
+            - is_public
+          properties:
+            name:
+              type: string
+            address:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+            is_public:
+              type: boolean
+          description: datos para crear una biblioteca
+    responses:
+      201:
+        description: Creacion completada
+      400:
+        description: Datos no otorgados
+      401:
+        description: Usuario no existe
+      403:
+        description: Usuario sin permisos
+      500:
+        description: problemas en el servidor
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -113,6 +189,45 @@ def crear_biblioteca():
 @libraries_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def actualizar_biblioteca(id):
+    """
+    Actualizar datos de Biblioteca
+    Requiere Autenticación del Admin o jefe de biblioteca
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id existente de la biblioteca
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            address:
+              type: string
+            phone:
+              type: string
+            is_public:
+              type: boolean
+          description: datos para actualizar
+    responses:
+      200:
+        description: actualización exitosa
+      400:
+        description: Error en los datos proporcionados
+      401:
+        description: Usuario No encontrado
+      403:
+        description: El usuario No tiene permiso de realizar esta accion
+      404:
+        description: La biblioteca No existe
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -165,6 +280,28 @@ def actualizar_biblioteca(id):
 @libraries_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_biblioteca(id):
+    """
+    Soft delete de la biblioteca
+    Requiere Autenticación del Admin o jefe de biblioteca
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id de la biblioteca a eliminar
+    responses:
+      204:
+        description: Eliminación de la biblioteca completado
+      401:
+        description: El usuario no existe
+      403:
+        description: El usuario no tiene permiso
+      404:
+        description: La biblioteca no existe
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -187,9 +324,21 @@ def eliminar_biblioteca(id):
     db.session.commit()
     return "", 204
 
+# GET /biblioteca/mine
 @libraries_bp.route('/mine', methods=['GET'])
 @jwt_required()
 def mis_bibliotecas():
+    """
+    Lista de bibliotecas a las que pertenece el usuario
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Consulta exitosa
+      401:
+        description: Usuario Inexistente
+    """
     user_id= int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
