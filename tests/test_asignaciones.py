@@ -1,5 +1,7 @@
 from models import (Usuario, Asignacion, Biblioteca)
 from extensions import db
+from unittest.mock import patch
+from sqlalchemy.exc import IntegrityError
 
 # GET asignaciones/
 def test_asignaciones_get_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun):
@@ -117,6 +119,23 @@ def test_asignaciones_get_lector_de_bibliotecas(client, app,
     assert data[0]["biblioteca"]["id"] == biblioteca_de_prueba["id"]
     assert data[0]["usuario"]["id"] == usuario_de_prueba["id"]
     assert data[0]["rol"]["id"] == roles_de_prueba["lector"]
+    
+def test_asignaciones_get_admin_filtro_is_owner(client, app, token_admin, 
+        asignacion_bibliotecario_de_prueba):
+    with app.app_context():
+        asi = db.session.get(Asignacion, asignacion_bibliotecario_de_prueba["id"])
+        asi.is_owner =False
+        db.session.commit()
+        
+    resp = client.get('/asignaciones', query_string={
+        "is_owner" : False
+    },
+    headers={
+        "Authorization": f"Bearer {token_admin}"
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data[0]["is_owner"] == False
     
 def test_asignaciones_get_admin_ve_todas_filtro_error_is_owner(client, token_admin, 
         asignacion_bibliotecario_de_prueba):
@@ -241,3 +260,209 @@ def test_asignaciones_get_id_usuario_sin_asignacion(client, token_usuario_comun,
     
     assert resp.status_code == 403
     assert resp.get_json()["error"] == "No tienes permiso para realizar esta accion"
+    
+# POST /asignaciones
+def test_asignaciones_post_json_invalido(client, token_usuario_comun):
+    resp = client.post('/asignaciones', 
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON inválido o vacío"
+    
+def test_asignaciones_post_datos_faltantes(client, token_usuario_comun, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    resp = client.post('/asignaciones', 
+        json={
+            "usuario_id": None,
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["bibliotecario"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert "Faltan campos obligatorios" in resp.get_json()["error"]
+    
+def test_asignaciones_post_datos_enteros(client, token_usuario_comun, biblioteca_de_prueba, roles_de_prueba):
+    resp = client.post('/asignaciones', 
+        json={
+            "usuario_id":"uno",
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["lector"],
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Todos los datos deben ser enteros"
+    
+def test_asignaciones_post_consulta_usaurio_inexistente(client, app, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba, token_usuario_comun):
+    with app.app_context():
+        u=db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.post('/asignaciones', 
+        json={
+            "usuario_id": usuario_de_prueba["id"],
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_asignaciones_post_usuario_sin_permiso(client, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba, token_usuario_comun):
+    resp = client.post('/asignaciones', 
+        json={
+            "usuario_id": usuario_de_prueba["id"],
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "No tienes permiso para realizar esta accion"
+    
+def test_asignaciones_post_biblioteca_inexistente(client, usuario_de_prueba, token_admin, roles_de_prueba):
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id": usuario_de_prueba["id"],
+            "biblioteca_id": 999,
+            "rol_id": roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La biblioteca NO existe"
+    
+def test_asignaciones_post_usaurio_inexistente(client, token_bibliotecario, biblioteca_de_prueba, roles_de_prueba):
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id": 9999,
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization":f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El usuario NO existe"
+    
+def test_asignaciones_post_biblioteca_inactiva(client, app, token_bibliotecario, roles_de_prueba, usuario_de_prueba, biblioteca_de_prueba):
+    with app.app_context():
+        b = db.session.get(Biblioteca, biblioteca_de_prueba["id"])
+        b.is_active = False
+        db.session.commit()
+        
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id" : usuario_de_prueba["id"],
+            "biblioteca_id" : biblioteca_de_prueba["id"],
+            "rol_id" : roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "La biblioteca NO está activa"
+    
+def test_asignaciones_post_rol_inexistente(client, usuario_de_prueba, biblioteca_de_prueba, token_bibliotecario, roles_de_prueba):
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id": usuario_de_prueba["id"],
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": 10
+        },
+        headers={
+            "Authorization":f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El rol NO existe"
+    
+def test_asignaciones_post_no_bibliotecario(client, usuario_de_prueba, biblioteca_de_prueba, token_bibliotecario, roles_de_prueba):
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id": usuario_de_prueba["id"],
+            "biblioteca_id": biblioteca_de_prueba["id"],
+            "rol_id": roles_de_prueba["bibliotecario"]
+        },
+        headers={
+            "Authorization":f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"]== "El rol NO puede ser bibliotecario"
+    
+def test_asignaciones_post_asignacion_ya_existente(client, app, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba, token_bibliotecario):
+    with app.app_context():
+        asig = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"]
+        )
+        db.session.add(asig)
+        db.session.commit()
+    
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id" : usuario_de_prueba["id"],
+            "biblioteca_id" : biblioteca_de_prueba["id"],
+            "rol_id" : roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Ya existe una asignacion en esta biblioteca"
+    
+def test_asignaciones_post_Integrity_error(client, token_bibliotecario, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        resp = client.post('/asignaciones',
+            json={
+                "usuario_id" : usuario_de_prueba["id"],
+                "biblioteca_id" : biblioteca_de_prueba["id"],
+                "rol_id" : roles_de_prueba["lector"]
+            },
+            headers={
+                "Authorization": f"Bearer {token_bibliotecario}"
+            })
+        
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Algo salió mal durante el proceso de asignar"
+    
+def test_asignaciones_post_asignacion_completa(client, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba, token_bibliotecario):
+    resp = client.post('/asignaciones',
+        json={
+            "usuario_id" : usuario_de_prueba["id"],
+            "biblioteca_id" : biblioteca_de_prueba["id"],
+            "rol_id" : roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 201
+    data = resp.get_json()
+    assert len(data) == 5
+    assert data["biblioteca"]["name"] == biblioteca_de_prueba["name"]
+    assert data["usuario"]["name"] == usuario_de_prueba["name"]
+    
