@@ -672,3 +672,109 @@ def test_asignaciones_put_completo_por_admin(client, token_admin, usuario_de_pru
     assert data["biblioteca"]["name"] == biblioteca_de_prueba["name"]
     assert data["rol"]["id"] == roles_de_prueba["asistente"]
     
+# DELETE /asignaciones/<id>
+def test_asignaciones_delete_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun,
+        asignacion_bibliotecario_de_prueba):
+    with app.app_context():
+        u=db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_asignaciones_delete_sin_token(client, app, usuario_de_prueba,
+        asignacion_bibliotecario_de_prueba):
+    with app.app_context():
+        u=db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}')
+    
+    assert resp.status_code == 401
+    
+def test_asignaciones_delete_asignacion_inexistente(client, app, usuario_de_prueba, token_usuario_comun,
+        asignacion_bibliotecario_de_prueba):
+    resp = client.delete(f'/asignaciones/99',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La asignación NO existe"
+    
+def test_asignaciones_delete_usuario_invalido(client, app, usuario_de_prueba, token_usuario_comun,
+        asignacion_bibliotecario_de_prueba):
+    resp = client.delete(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "No Tienes permiso para realizar esta accion"
+    
+def test_asignaciones_delete_asignacion_jefe(client, app, usuario_de_prueba, token_admin,
+        asignacion_bibliotecario_de_prueba):
+    with app.app_context():
+        u=db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "No se puede eliminar la Asignacion del Jefe"
+    
+def test_asignaciones_delete_IntegrityError(client, app, usuario_de_prueba, token_bibliotecario,
+        biblioteca_de_prueba, roles_de_prueba):
+    with app.app_context():
+        asig = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"]
+            )
+        db.session.add(asig)
+        db.session.commit()
+        asignacion_id = asig.id
+            
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        resp = client.delete(f'/asignaciones/{asignacion_id}',
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+        
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Algo salió Mal durante el proceso de eliminacion"
+    
+def test_asignaciones_delete_correcto(client, app, usuario_de_prueba, token_bibliotecario,
+        biblioteca_de_prueba, roles_de_prueba):
+    with app.app_context():
+        asig = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"]
+            )
+        db.session.add(asig)
+        db.session.commit()
+        asignacion_id = asig.id
+                
+    resp = client.delete(f'/asignaciones/{asignacion_id}',
+
+    headers={
+        "Authorization": f"Bearer {token_bibliotecario}"
+    })
+    
+    assert resp.status_code == 204
+    
