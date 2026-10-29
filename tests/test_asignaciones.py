@@ -466,3 +466,209 @@ def test_asignaciones_post_asignacion_completa(client, usuario_de_prueba, biblio
     assert data["biblioteca"]["name"] == biblioteca_de_prueba["name"]
     assert data["usuario"]["name"] == usuario_de_prueba["name"]
     
+# PUT /asignaciones/<id>
+def test_asignaciones_put_json_invalido(client, asignacion_bibliotecario_de_prueba, token_bibliotecario):
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON inválido o vacío"
+    
+def test_asignaciones_put_sin_rol(client, asignacion_bibliotecario_de_prueba, token_bibliotecario):
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json={
+            "id_rol":3
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert "asignar un rol" in resp.get_json()["error"]
+    
+def test_asignaciones_put_rol_string_invalido(client, asignacion_bibliotecario_de_prueba, token_bibliotecario):
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json={
+            "rol_id": "uno"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El id de rol debe ser enteros"
+    
+def test_asignaciones_put_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun,
+        asignacion_bibliotecario_de_prueba, roles_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_asignaciones_put_asignacion_inexistente(client, 
+        token_bibliotecario, roles_de_prueba):
+    resp = client.put(f'/asignaciones/9999',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La asignacion no existe"
+    
+def test_asignaciones_put_usuario_sin_permiso(client, token_usuario_comun,
+        asignacion_bibliotecario_de_prueba, biblioteca_de_prueba, usuario_de_prueba_bibliotecario, roles_de_prueba):
+    
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "No tienes permiso para realizar esta accion"
+    
+def test_asignaciones_put_usuario_jefe(client, usuario_de_prueba_bibliotecario, roles_de_prueba, biblioteca_de_prueba,
+        asignacion_bibliotecario_de_prueba, token_bibliotecario):
+    resp = client.put(f'/asignaciones/{asignacion_bibliotecario_de_prueba["id"]}',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "No puedes modificar la asignación del jefe de la biblioteca"
+    
+def test_asignaciones_put_rol_inexistente(client, app, usuario_de_prueba_bibliotecario, 
+    token_bibliotecario, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    asig = Asignacion(
+        usuario_id = usuario_de_prueba["id"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        rol_id = roles_de_prueba["lector"],
+        is_owner= False
+    )
+    db.session.add(asig)
+    db.session.commit()
+    asignacion_id = asig.id
+        
+    resp = client.put(f'/asignaciones/{asignacion_id}',
+        json={
+            "rol_id": 90
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El rol solicitado No existe"
+    
+def test_asignaciones_put_a_rol_bibliotecario(client, token_bibliotecario, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    asig = Asignacion(
+        usuario_id = usuario_de_prueba["id"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        rol_id = roles_de_prueba["lector"]
+    )
+    db.session.add(asig)
+    db.session.commit()
+    asignacion_id = asig.id
+        
+    resp = client.put(f'/asignaciones/{asignacion_id}',
+        json={
+            "rol_id": roles_de_prueba["bibliotecario"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 403
+    assert "No puedes cambiar el rol a" in resp.get_json()["error"]
+    
+def test_asignaciones_put_mismo_rol(client, token_bibliotecario, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    asig = Asignacion(
+        usuario_id = usuario_de_prueba["id"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        rol_id = roles_de_prueba["lector"]
+    )
+    db.session.add(asig)
+    db.session.commit()
+    asignacion_id = asig.id
+        
+    resp = client.put(f'/asignaciones/{asignacion_id}',
+        json={
+            "rol_id": roles_de_prueba["lector"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 409
+    assert "ya tiene el rol" in resp.get_json()["error"]
+    
+def test_asignaciones_put_completo_por_bibliotecario(client, token_bibliotecario, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    asig = Asignacion(
+        usuario_id = usuario_de_prueba["id"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        rol_id = roles_de_prueba["lector"]
+    )
+    db.session.add(asig)
+    db.session.commit()
+    asignacion_id = asig.id
+        
+    resp = client.put(f'/asignaciones/{asignacion_id}',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["usuario"]["name"] == usuario_de_prueba["name"]
+    assert data["biblioteca"]["name"] == biblioteca_de_prueba["name"]
+    assert data["rol"]["id"] == roles_de_prueba["asistente"]
+    
+def test_asignaciones_put_completo_por_admin(client, token_admin, usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    asig = Asignacion(
+        usuario_id = usuario_de_prueba["id"],
+        biblioteca_id = biblioteca_de_prueba["id"],
+        rol_id = roles_de_prueba["lector"]
+    )
+    db.session.add(asig)
+    db.session.commit()
+    asignacion_id = asig.id
+        
+    resp = client.put(f'/asignaciones/{asignacion_id}',
+        json={
+            "rol_id": roles_de_prueba["asistente"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["usuario"]["name"] == usuario_de_prueba["name"]
+    assert data["biblioteca"]["name"] == biblioteca_de_prueba["name"]
+    assert data["rol"]["id"] == roles_de_prueba["asistente"]
+    
