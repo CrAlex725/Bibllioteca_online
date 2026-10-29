@@ -10,6 +10,47 @@ asignaciones_bp = Blueprint('asignaciones', __name__, url_prefix='/asignaciones'
 @asignaciones_bp.route('', methods=['GET'])
 @jwt_required()
 def asignaciones():
+    """
+    Ver asignaciones de usuario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: usuario_id
+        in: query
+        type: integer
+        required: false
+        description: id del usuario
+      - name: biblioteca_id
+        in: query
+        type: integer
+        required: false
+        description: id de la biblioteca
+      - name: rol_id
+        in: query
+        type: integer
+        required: false
+        description: id del rol
+      - name: usuario_rut
+        in: query
+        type: string
+        required: false
+        description: rut del usuario
+      - name: is_owner
+        in: query
+        type: boolean
+        required: false
+        description: es jefe de biblioteca
+    responses:
+      200:
+        description: Consulta exitosa
+      400:
+        description: los valores deben ser enteros
+      401:
+        description: usuario inexistente
+      403:
+        description: usuario no tiene permiso
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -80,6 +121,27 @@ def asignaciones():
 @asignaciones_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()
 def una_asignacion(id):
+    """
+    Ver información de asignacion
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id de la asignacion
+    responses:
+      200:
+        description: Consulta exitosa
+      401:
+        description: El usuario no existe
+      403:
+        description: Usuario sin permiso
+      404:
+        description: La asignacion no existe
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -108,6 +170,42 @@ def una_asignacion(id):
 @asignaciones_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_asignacion():
+    """
+    Crear Asignaciones
+    Requiere autenticacion Admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - usuario_id
+            - biblioteca_id
+            - rol_id
+          properties:
+            usuario_id:
+              type: integer
+            biblioteca_id:
+              type: integer
+            rol_id:
+              type: integer
+        description: Id de datos para asignacion
+    responses:
+      201:
+        description: Creacion Exitosa
+      400:
+        description: Datos inválidos
+      401:
+        description: Usuario No encontrado
+      403:
+        description: Sin permiso para realizar la accion
+      409:
+        description: Ya existe una asignacion con esos datos
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -192,6 +290,41 @@ def crear_asignacion():
 @asignaciones_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def actualizar_asignacion(id):
+    """
+    Actualizar asignacion
+    Requiere Autorizacion de admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID de la asignacion
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            rol_id:
+              type: integer
+          description: id del rol a actualizar
+    responses:
+      200:
+        description: Actualizacion Completa
+      400:
+        description: Datos Inválidos
+      401:
+        description: El usuario No existe
+      403:
+        description: Sin permisos para realizar esta accion
+      404:
+        description: La asignacion no existe
+      409:
+        description: La asignacion ya tiene ese rol
+    """
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error":"JSON inválido o vacío"}), 400
@@ -247,6 +380,31 @@ def actualizar_asignacion(id):
 @asignaciones_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_asignacion(id):
+    """
+    Eliminar Asignacion
+    Requiere Autorizacion de Admin o Biblitecario
+    Solo si la asignacion NO es del jefe de biblioteca
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+        description: Id de la asignacion a eliminar
+    responses:
+      204:
+        description: Eliminación completa
+      401:
+        description: Usuario inexistente
+      403:
+        description: Sin permiso para realizar esta accion
+      404:
+        description: Asignacion No encontrada
+      409:
+        description: Algo salió mal durante el proceso de eliminación
+    """
     user_id = int(get_jwt_identity())
     usuario= Usuario.query.filter_by(id=user_id).first()
     if not usuario:
