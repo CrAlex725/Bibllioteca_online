@@ -137,6 +137,19 @@ def roles_de_prueba(app):
         return roles
         
 @pytest.fixture
+def estados_de_prueba(app):
+    with app.app_context():
+        estados ={}
+        for name in ["disponible", "prestado", "dañado", "de baja"]:
+            estado = Estado(nombre=name)
+            db.session.add(estado)
+            db.session.flush()
+            estados[name] = estado.id
+        db.session.commit()
+        
+        return estados
+    
+@pytest.fixture
 def usuario_de_prueba_bibliotecario(app):
     with app.app_context():
         usuario = Usuario(
