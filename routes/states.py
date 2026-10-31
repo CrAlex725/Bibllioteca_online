@@ -8,6 +8,20 @@ states_bp = Blueprint('states', __name__, url_prefix='/states')
 
 @states_bp.route('', methods=['GET'])
 def listar_estado():
+    """
+    Consulta de estados para libros
+    no requiere Autenticacion
+    ---
+    parameters:
+      - name: nombre
+        in: query
+        type: string
+        description: Nombre del estado
+    responses:
+      200:
+        description: Consulta exitosa
+    """
+    
     nombre = request.args.get('nombre')
     query = Estado.query
     
@@ -19,6 +33,22 @@ def listar_estado():
 
 @states_bp.route('/<int:id>', methods=['GET'])
 def estado_info(id):
+    """
+    Información Completa del estado
+    No requiere Autenticacion
+    ---
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del estado
+    responses:
+      200:
+        description: Consulta exitosa
+      404:
+        description: Estado Inexistente
+    """
     estado = Estado.query.filter_by(id=id).first()
     
     if not estado:
@@ -29,6 +59,37 @@ def estado_info(id):
 @states_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_estado():
+    """
+    Crear nuevo estado
+    Requiere autenticacion Admin
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nombre
+          properties:
+            nombre: 
+              type: string
+    responses:
+      201:
+        description: Creacion exitosa
+      400:
+        description: Datos inválidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      409:
+        description: Ya existe este estado
+      500:
+        description: Algo salió mal con este proceso
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -71,6 +132,42 @@ def crear_estado():
 @states_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def actualizar_modelo_estado(id):
+    """
+    Actualizar datos de estado 
+    requiere autenticación de admin
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del estado
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nombre
+          properties:
+            nombre:
+              type: string
+    responses:
+      200:
+        description: actualización Exitosa
+      400:
+        description: Datos invalidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Estado No encontrado
+      409:
+        description: El nuevo estado Ya existe
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -111,6 +208,30 @@ def actualizar_modelo_estado(id):
 @states_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_estado(id):
+    """
+    Eliminar estado 
+    requiere autenticación de admin
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del estado
+    responses:
+      200:
+        description: Eliminación Exitosa
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Estado Inexistente
+      409:
+        description: No se puede eliminar, tiene ejemplares asociados
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
