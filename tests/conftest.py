@@ -144,7 +144,7 @@ def estados_de_prueba(app):
             estado = Estado(nombre=name)
             db.session.add(estado)
             db.session.flush()
-            estados[name] = estado.id
+            estados[name] = {"id":estado.id, "nombre": estado.nombre}
         db.session.commit()
         
         return estados
