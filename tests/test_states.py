@@ -254,3 +254,62 @@ def test_states_put_id_correcto(client, token_admin, estados_de_prueba):
     assert resp.status_code == 200
     assert resp.get_json()["nombre"] == "Accesible"
     
+# DELETE states/<id>
+def test_states_delete_id_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun, estados_de_prueba):
+    with app.app_context():
+        u=db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f'/states/{estados_de_prueba["disponible"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_states_delete_id_usuario_sin_permiso(client, token_usuario_comun, estados_de_prueba):
+    resp = client.delete(f'/states/{estados_de_prueba["disponible"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tienes permiso" in resp.get_json()["error"]
+    
+def test_states_delete_id_estado_inexistente(client, token_admin):
+    resp = client.delete('/states/999',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El estado no existe"
+    
+def test_states_delete_id_IntegrityError(client, token_admin, estados_de_prueba):
+    with patch.object(
+        db.session, "commit",
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+    
+        resp = client.delete(f'/states/{estados_de_prueba["disponible"]["id"]}',
+            headers={
+                "Authorization": f"Bearer {token_admin}"
+            })
+
+    assert resp.status_code == 409
+    assert "Algo salió mal" in resp.get_json()["error"]
+    
+def test_states_delete_id_completo(client, app,token_admin, estados_de_prueba):
+    resp = client.delete(f'/states/{estados_de_prueba["disponible"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 204
+    with app.app_context():
+        e = db.session.get(Estado, estados_de_prueba["disponible"]["id"])
+        
+    assert e == None
+    
