@@ -8,6 +8,20 @@ editorial_bp = Blueprint('editorials', __name__, url_prefix='/editorials')
 
 @editorial_bp.route('', methods=['GET'])
 def editorial():
+    """
+    Todas las editoriales requistradas
+    No requiere Autenticacion
+    ---
+    parameters:
+      - name: nombre
+        in: query
+        type: string
+        required: false
+        description: nombre parcial para buscar
+    responses:
+      200:
+        description: respuesta de la consulta
+    """
     nombre = request.args.get('nombre')
     query = Editorial.query
     
@@ -19,6 +33,22 @@ def editorial():
 
 @editorial_bp.route('/<int:id>', methods=['GET'])
 def editorial_info(id):
+    """
+    Información individual de cada editorial
+    No requiere autenticacion
+    ---
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id de la editorial
+    responses:
+      200:
+        description: Consulta exitosa
+      404:
+        description: No exste el id
+    """
     editorial = Editorial.query.filter_by(id=id).first()
     
     if not editorial:
@@ -29,6 +59,38 @@ def editorial_info(id):
 @editorial_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_editorial():
+    """
+    Crear editorial
+    Requiere Autenticacion de Admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: nombre
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nombre
+          properties:
+            nombre:
+              type: string
+        description: nueva editorial
+    responses:
+      201:
+        description: Creación exitosa
+      400:
+        description: Datos inválidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      409:
+        description: editorial ya existente
+      500:
+        description: Algo salió mal
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -70,6 +132,32 @@ def crear_editorial():
 @editorial_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def editar_editorial(id):
+    """
+    Actualizar editorial existente
+    Requiere Autenticacion de Administrador
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: Id de la editorial a actualizar
+    responses:
+      200:
+        description: Actualización Exitosa
+      400:
+        description: Datos Invalidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usaurio sin permiso
+      404:
+        description: Editorial No encontrada
+      409:
+        description: Editorial Ya existente
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -109,6 +197,30 @@ def editar_editorial(id):
 @editorial_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_editorial(id):
+    """
+    Eliminar editorial NO asociada
+    Requiere Autenticacion de Administrador
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id de editorial para eliminar
+    responses:
+      204:
+        description: Eliminacion completa
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permisos
+      404:
+        description: Editorial NO encontrada
+      409:
+        description: Algo salió mal en la eliminacion
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
