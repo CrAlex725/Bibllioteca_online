@@ -256,3 +256,58 @@ def test_editorials_put_actualización_completa(client, token_admin, editoriales
     assert resp.status_code == 200
     resp.get_json()["nombre"] == "Nueva Zig Zag"
     
+# DELETE editorials/<id>
+def test_editorials_delete_id_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun, editoriales_de_prueba):
+    u = db.session.get(Usuario, usuario_de_prueba["id"])
+    db.session.delete(u)
+    db.session.commit()
+    
+    resp = client.delete(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario no existe"
+    
+def test_editorials_delete_id_usuario_sin_permiso(client, token_usuario_comun, editoriales_de_prueba):
+    resp = client.delete(f'/editorials/{editoriales_de_prueba["Algar"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "No tienes permiso" in resp.get_json()["error"]
+    
+def test_editorials_delete_id_editorial_inexistente(client, token_admin):
+    resp = client.delete(f'/editorials/999999',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La editorial No existe"
+    
+def test_editorials_delete_id_IntegrityError(client, token_admin, editoriales_de_prueba):
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        resp = client.delete(f'/editorials/{editoriales_de_prueba["Algar"]["id"]}',
+            headers={
+                "Authorization": f"Bearer {token_admin}"
+            })
+    
+    assert resp.status_code == 409
+    assert "Algo salió mal" in resp.get_json()["error"]
+    
+def test_editorials_delete_id_completado(client, app, token_admin, editoriales_de_prueba):
+    resp = client.delete(f'/editorials/{editoriales_de_prueba["Algar"]["id"]}',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 204
+    with app.app_context():
+        editorial = db.session.get(Editorial, editoriales_de_prueba["Algar"]["id"])
+    assert editorial == None
