@@ -150,6 +150,19 @@ def estados_de_prueba(app):
         return estados
     
 @pytest.fixture
+def editoriales_de_prueba(app):
+    with app.app_context():
+        editoriales = {}
+        for name in ["Zig Zag", "Neko Books", "Algar", "Austral", "Booket", "Editorial Planeta", "Peninsula"]:
+            editorial = Editorial(nombre=name)
+            db.session.add(editorial)
+            db.session.flush()
+            editoriales[name] = {"id":editorial.id, "nombre":editorial.nombre}
+        db.session.commit()
+        
+        return editoriales
+    
+@pytest.fixture
 def usuario_de_prueba_bibliotecario(app):
     with app.app_context():
         usuario = Usuario(

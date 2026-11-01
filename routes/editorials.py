@@ -40,12 +40,12 @@ def crear_editorial():
     if not usuario:
         return jsonify({"error":"El usuario no existe"}), 401
     
-    if not usuario.es_admin():
+    if not usuario.es_bibliotecario() and not usuario.es_admin():
         return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
     
     nombre = data.get('nombre')
     
-    if not nombre:
+    if not nombre or nombre.strip() == "":
         return jsonify ({"error":"debes entregar un nombre para la nueva editorial"}), 400
     
     editorial = Editorial.query.filter(
@@ -90,7 +90,7 @@ def editar_editorial(id):
     
     nombre = data.get('nombre')
     
-    if not nombre:
+    if not nombre or nombre.strip() == "":
         return jsonify({"error":"debes asignar un nombre a la editorial"}), 400
     
     existe = Editorial.query.filter(
