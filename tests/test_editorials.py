@@ -168,3 +168,91 @@ def test_editorials_post_creacion_exitosa(client, token_bibliotecario):
     data = resp.get_json()
     assert data["nombre"] == "Nueva Editorial"
     
+# PUT editorials/<id>
+def test_editorials_put_Json_invalido(client, editoriales_de_prueba, token_usuario_comun):
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON Invalido o vacío"
+    
+def test_editorials_put_usuario_inexistente(client, app, usuario_de_prueba, editoriales_de_prueba, token_usuario_comun):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json={
+            "nombre": "Zig-Zag"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario no existe"
+    
+def test_editorials_put_usuario_sin_permiso(client, token_usuario_comun, editoriales_de_prueba):
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json={
+            "nombre": "Zig-Zag's"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tiene permiso" in resp.get_json()["error"]
+    
+def test_editorials_put_editorial_inexistente(client, token_admin):
+    resp = client.put('/editorials/999999',
+        json={
+            "nombre": "Zig-Zag's"
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "La editorial No existe"
+    
+def test_editorials_put_dato_no_valido(client, editoriales_de_prueba, token_admin):
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json={
+            "nombre": "     "
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 400
+    assert "debes asignar un nombre" in resp.get_json()["error"]
+    
+def test_editorials_put_editorial_ya_existente(client, editoriales_de_prueba, token_admin):
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json={
+            "nombre" : editoriales_de_prueba["Algar"]["nombre"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 409
+    assert "Ya existe otra editorial" in resp.get_json()["error"]
+    
+def test_editorials_put_actualización_completa(client, token_admin, editoriales_de_prueba):
+    resp = client.put(f'/editorials/{editoriales_de_prueba["Zig Zag"]["id"]}',
+        json={
+            "nombre" : "Nueva Zig Zag"
+        },
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 200
+    resp.get_json()["nombre"] == "Nueva Zig Zag"
+    
