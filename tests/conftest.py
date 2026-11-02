@@ -283,3 +283,23 @@ def biblioteca_privada_de_prueba(app, usuario_de_prueba_bibliotecario):
             "created_by": usuario_de_prueba_bibliotecario["id"],
             "is_public" : False
         }
+    
+@pytest.fixture
+def exemplares_de_prueba(app, libro_de_prueba, biblioteca_de_prueba, estados_de_prueba, usuario_de_prueba_bibliotecario):
+    with app.app_context():
+        libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
+        ejemplares={}
+        for numero in [1, 2, 3]:
+            ejemplar = Ejemplar(
+                libro_id=libro.id,
+                estado_id=estados_de_prueba["disponible"]["id"],
+                biblioteca_id=biblioteca_de_prueba["id"],
+                numero_ejemplar=numero,
+                created_by=usuario_de_prueba_bibliotecario["id"]
+            )
+            db.session.add(ejemplar)
+            db.session.flush()
+            ejemplares[numero] = {"id": ejemplar.id, "numero": numero}
+        db.session.commit()
+        
+        return ejemplares
