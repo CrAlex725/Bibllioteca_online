@@ -1,4 +1,5 @@
 from models import (Libro)
+
 # GET exemplars/ 
 def test_exemplars_get_consulta_sin_filtros(client, exemplares_de_prueba, token_usuario_comun):
     resp = client.get('/exemplars',
@@ -42,3 +43,22 @@ def test_exemplars_get_todos_los_filtros(client, app, exemplares_de_prueba, toke
     assert resp.status_code == 200
     assert len(resp.get_json()) > 0
     
+# GET exemplars/<id> 
+def test_exemplars_get_id_exemplar_inexistente(client, exemplares_de_prueba, token_usuario_comun):
+    resp = client.get('/exemplars/9999',
+        headers={
+            "Authorization" : f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Ejemplar NO encontrado"
+    
+def test_exemplars_get_id_exemplar_existente(client, exemplares_de_prueba, token_usuario_comun):
+    resp = client.get(f'/exemplars/{exemplares_de_prueba[1]["id"]}',
+        headers={
+            "Authorization" : f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["numero_ejemplar"] == exemplares_de_prueba[1]["numero"]

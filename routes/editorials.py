@@ -76,7 +76,7 @@ def crear_editorial():
           properties:
             nombre:
               type: string
-        description: nueva editorial
+          description: nueva editorial
     responses:
       201:
         description: Creación exitosa
