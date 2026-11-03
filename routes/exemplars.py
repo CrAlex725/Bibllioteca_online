@@ -1,6 +1,6 @@
 from flask import jsonify, request, Blueprint
 from sqlalchemy.exc import IntegrityError
-from models import Ejemplar, Estado, Usuario, Libro, Biblioteca
+from models import Ejemplar, Estado, Usuario, Libro, Biblioteca, Asignacion, Rol
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 
@@ -72,8 +72,10 @@ def agregar_ejemplar():
     if not usuario:
         return jsonify({"error":"El usuario No existe"}), 401
     
+    asignacion = Asignacion.query.filter_by(usuario_id=usuario.id, biblioteca_id=biblioteca_id).first()
+    
     if not usuario.es_admin():
-        if not usuario.tiene_asignacion_en(biblioteca_id):
+        if not usuario.tiene_asignacion_en(biblioteca_id) or asignacion.rol.name == "lector":
             return jsonify({"error":"El usuario No tiene permisos para realizar esta accion"}), 403
         
     libro = Libro.query.filter_by(id=libro_id).first()
@@ -91,6 +93,9 @@ def agregar_ejemplar():
     
     if not estado:
         return jsonify({"error":"Estado 'Disponible' no configurado"}), 500
+    
+    if numero_ej == None:
+        return jsonify({"error":"El valor No puede ser None"}), 400
     
     if numero_ej is not None:
         try:
