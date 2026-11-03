@@ -94,9 +94,6 @@ def agregar_ejemplar():
     if not estado:
         return jsonify({"error":"Estado 'Disponible' no configurado"}), 500
     
-    if numero_ej == None:
-        return jsonify({"error":"El valor No puede ser None"}), 400
-    
     if numero_ej is not None:
         try:
             numero_ej = int(numero_ej)
