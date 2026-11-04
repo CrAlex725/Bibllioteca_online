@@ -210,8 +210,10 @@ def eliminar_ejemplar(id):
     if not usuario:
         return jsonify({"error":"el usuario no existe"}), 401
     
+    asignacion = Asignacion.query.filter_by(usuario_id=usuario.id, biblioteca_id=ejemplar.biblioteca_id).first()
+    
     if not usuario.es_admin():
-        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id):
+        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id) or asignacion.rol.name == "lector":
             return jsonify({"error":"El usuario no tiene permiso para realizar esta accion"}), 403
         
     estado = Estado.query.filter(

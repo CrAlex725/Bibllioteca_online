@@ -566,3 +566,82 @@ def test_exemplars_put_actualizacion_completa(client, exemplares_de_prueba,
     assert data["signatura"] == "Nueva Signatura"
     assert data["estado"]["id"] == estados_de_prueba["dañado"]["id"]
     
+# DELETE exemplars/<id>
+def test_exemplars_delete_ejemplar_inexistente(client, exemplares_de_prueba, token_usuario_comun):
+    resp = client.delete(f"/exemplars/999999",
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El ejemplar No existe"
+    
+def test_exemplars_delete_usuario_inexistente(client, app, exemplares_de_prueba, usuario_de_prueba, token_usuario_comun):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.delete(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "el usuario no existe"
+    
+def test_exemplars_delete_usuario_sin_permiso(client, exemplares_de_prueba, token_usuario_comun):
+    resp = client.delete(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tiene permiso" in resp.get_json()["error"]
+    
+def test_exemplars_delete_usuario_lector_sin_permiso(client, app, exemplares_de_prueba, token_usuario_comun,
+    usuario_de_prueba, biblioteca_de_prueba, roles_de_prueba):
+    with app.app_context():
+        asignacion = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"]
+        )
+        db.session.add(asignacion)
+        db.session.commit()
+        
+    resp = client.delete(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tiene permiso" in resp.get_json()["error"]
+    
+def test_exemplars_delete_estado_inexistente(client, app, exemplares_de_prueba, token_bibliotecario,
+    estados_de_prueba):
+    with app.app_context():
+        estado = Estado.query.filter_by(id=estados_de_prueba["de baja"]["id"]).first()
+        db.session.delete(estado)
+        db.session.commit()
+        
+    resp = client.delete(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 500
+    assert resp.get_json()["error"] == "El estado 'de baja' no existe"
+    
+def test_exemplars_delete_completo(client, app, exemplares_de_prueba, token_bibliotecario):
+    resp = client.delete(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 204
+    data = resp.get_json()
+    data is None
+    with app.app_context():
+        ejemplar = db.session.get(Ejemplar, exemplares_de_prueba[1]["id"])
+        assert ejemplar.estado.nombre.lower() == "de baja"
