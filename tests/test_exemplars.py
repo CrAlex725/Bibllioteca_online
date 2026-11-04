@@ -335,7 +335,6 @@ def test_exemplars_post_creacion_exitosa_sin_numero_ejemplar(
             biblioteca_id=bib_id, libro_id=libro_id
         ).count()
 
-        # Números ya usados, para validar que el nuevo es distinto
         numeros_antes = {
             e.numero_ejemplar
             for e in Ejemplar.query.filter_by(
@@ -355,20 +354,17 @@ def test_exemplars_post_creacion_exitosa_sin_numero_ejemplar(
     assert resp.status_code == 201
     data = resp.get_json()
 
-    # El endpoint debe haber asignado un numero_ejemplar automáticamente
     assert "numero_ejemplar" in data
     assert isinstance(data["numero_ejemplar"], int)
     assert data["numero_ejemplar"] not in numeros_antes
     assert data["numero_ejemplar"] == max(numeros_antes, default=0) + 1
 
-    # Y debe existir uno más en BD
     with app.app_context():
         total_despues = Ejemplar.query.filter_by(
             biblioteca_id=bib_id, libro_id=libro_id
         ).count()
     assert total_despues == total_antes + 1
-
-
+    
 def test_exemplars_post_creacion_exitosa_con_numero_ejemplar(
         client, app, token_bibliotecario,
         libro_de_prueba, biblioteca_de_prueba,
@@ -378,7 +374,6 @@ def test_exemplars_post_creacion_exitosa_con_numero_ejemplar(
         libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
         libro_id = libro.id
 
-        # Siguiente número libre REAL, no asumido
         max_actual = db.session.query(
             db.func.max(Ejemplar.numero_ejemplar)
         ).filter_by(
@@ -398,4 +393,176 @@ def test_exemplars_post_creacion_exitosa_con_numero_ejemplar(
     assert resp.status_code == 201
     data = resp.get_json()
     assert data["numero_ejemplar"] == nuevo_numero
+    
+# PUT exemplers/<id>
+def test_exemplars_put_json_invalido(client, exemplares_de_prueba, token_usuario_comun):
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json=None,
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON invalido o vacío"
+    
+def test_exemplars_put_ejemplar_inexistente(client, exemplares_de_prueba, token_usuario_comun, estados_de_prueba):
+    resp = client.put(f"/exemplars/999999",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"],
+            "signatura": "Signatura Nueva"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El ejemplar No existe"
+    
+def test_exemplars_put_usuario_inexistente(client, app, exemplares_de_prueba, 
+        usuario_de_prueba, token_usuario_comun,
+    estados_de_prueba):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"],
+            "signatura": "Signatura Nueva"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "el usuario no existe"
+    
+def test_exemplars_put_usuario_sin_permiso(client, exemplares_de_prueba, 
+    estados_de_prueba, token_usuario_comun):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"],
+            "signatura": "Signatura Nueva"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tiene permiso" in resp.get_json()["error"]
+    
+def test_exemplars_put_usuario_lector_sin_permiso(client, app, exemplares_de_prueba, biblioteca_de_prueba,
+    estados_de_prueba, token_usuario_comun, usuario_de_prueba, roles_de_prueba):
+    with app.app_context():
+        asignacion = Asignacion(
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            rol_id = roles_de_prueba["lector"]
+        )
+        db.session.add(asignacion)
+        db.session.commit()
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"],
+            "signatura": "Signatura Nueva"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert "no tiene permiso" in resp.get_json()["error"]
+    
+def test_exemplars_put_sin_datos(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado": estados_de_prueba["dañado"]["id"],
+            "singatura": "Signatura Nueva"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert "Debes mandar al menos un campo" in resp.get_json()["error"]
+    
+def test_exemplars_put_estado_entero(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": "uno"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El id del estado debe ser un entero"
+    
+def test_exemplars_put_estado_inexistente(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": "90000"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "el estado no existe"
+    
+def test_exemplars_put_actualizacion_signatura(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "signatura": "Nueva Signatura"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["signatura"] == "Nueva Signatura"
+    
+def test_exemplars_put_actualizacion_estado(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"]
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["estado"]["id"] == estados_de_prueba["dañado"]["id"]
+    
+def test_exemplars_put_actualizacion_completa(client, exemplares_de_prueba,
+    estados_de_prueba, token_bibliotecario):
+    
+    resp = client.put(f"/exemplars/{exemplares_de_prueba[1]["id"]}",
+        json={
+            "estado_id": estados_de_prueba["dañado"]["id"],
+            "signatura": "Nueva Signatura"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["signatura"] == "Nueva Signatura"
+    assert data["estado"]["id"] == estados_de_prueba["dañado"]["id"]
     

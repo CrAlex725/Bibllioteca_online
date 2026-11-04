@@ -173,8 +173,10 @@ def actualizar_ejemplar(id):
     if not usuario:
         return jsonify({"error":"el usuario no existe"}), 401
     
+    asignacion = Asignacion.query.filter_by(usuario_id=usuario.id, biblioteca_id=ejemplar.biblioteca_id).first()
+    
     if not usuario.es_admin():
-        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id):
+        if not usuario.tiene_asignacion_en(ejemplar.biblioteca_id) or asignacion.rol.name == "lector":
             return jsonify({"error":"El usuario no tiene permiso para realizar esta accion"}), 403
 
     if 'estado_id' not in data and 'signatura' not in data:
@@ -187,7 +189,7 @@ def actualizar_ejemplar(id):
             return jsonify({"error":"El id del estado debe ser un entero"}), 400
         estado = Estado.query.filter_by(id=nuevo_estado_id).first()
         if not estado:
-            return jsonify({"error":"el estado que No existe"}), 400
+            return jsonify({"error":"el estado no existe"}), 400
         ejemplar.estado_id = nuevo_estado_id
         
     if 'signatura' in data:
