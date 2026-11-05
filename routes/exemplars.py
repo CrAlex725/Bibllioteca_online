@@ -9,6 +9,37 @@ exemplars_bp = Blueprint('exemplars', __name__, url_prefix='/exemplars')
 @exemplars_bp.route('', methods=['GET'])
 @jwt_required()
 def listar_ejemplares():
+    """
+    Lista de todos los ejemplares
+    Requiere Autorizacion 
+    ---
+    security: 
+      - Bearer: []
+    parameters:
+      - name: biblioteca_id
+        in: query
+        type: integer
+        required: false
+        description: Id de biblioteca
+      - name: estado_id
+        in: query
+        type: integer
+        required: false
+        description: Id de estado
+      - name: libro_id
+        in: query
+        type: integer
+        required: false
+        description: Id de libro
+      - name: disponibilidad
+        in: query
+        type: string
+        required: false
+        description: Booleano de disponibilidad
+    responses:
+      200:
+        description: Consulta existosa
+    """
     libro_id = request.args.get('libro_id')
     biblioteca_id = request.args.get('biblioteca_id')
     estado_id = request.args.get('estado_id')
@@ -35,6 +66,24 @@ def listar_ejemplares():
 @exemplars_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()
 def ejemplar_detallado(id):
+    """
+    Información de cada ejemplar
+    Requiere Autorización
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: Id del ejemplar
+    responses:
+      200:
+        description: Informacion del ejemplar
+      404:
+        description: Ejemplar  no existente
+    """
     ejemplar = Ejemplar.query.filter_by(id=id).first()
     
     if not ejemplar:
@@ -45,6 +94,45 @@ def ejemplar_detallado(id):
 @exemplars_bp.route('', methods=['POST'])
 @jwt_required()
 def agregar_ejemplar():
+    """
+    Crear Ejemplar
+    Requiere Autorizacion Admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - biblioteca_id
+            - libro_id
+          properties:
+            biblioteca_id:
+              type: integer
+            libro_id:
+              type: integer
+            numero_ejemplar:
+              type: integer
+          description: Datos requeridos para crear
+    responses:
+      201:
+        description: Actualizacion exitosa
+      400:
+        description: Datos invalidos
+      401:
+        description: Usuario no existe
+      403:
+        description: Usuario sin permisos
+      404:
+        description: Ejemplar inexistente
+      409:
+        description: El numero de ejemplar ya existe
+      500:
+        description: El estado asignado NO existe
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -160,6 +248,40 @@ def agregar_ejemplar():
 @exemplars_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def actualizar_ejemplar(id):
+    """
+    Actualizar Un ejemplar
+    Requiere Autorizacion de admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: Integer
+        required: true
+        description: Id de ejemplar
+      - name: body
+        in: body
+        schema:
+          type: object
+          properties:
+            estado_id:
+              type: integer
+            signatura:
+              type: string
+          description: Datos a actualizar
+    responses:
+      200:
+        description: Actualizacion exitosa
+      400:
+        description: Datos Inválidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Ejemplar NO existe
+    """
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error":"JSON invalido o vacío"}), 400
@@ -201,6 +323,31 @@ def actualizar_ejemplar(id):
 @exemplars_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_ejemplar(id):
+    """
+    Eliminar un ejemplar
+    Requiere Autorizacion de Admin o Bibliotecario
+    Soft delete, lo coloca 'de baja'
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        desciption: ID del ejemplar
+    responses:
+      204:
+        description: Eliminacion Completa
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario Sin permiso
+      404:
+        description: Ejemplar Inexistente
+      500:
+        description: Estado 'de baja' no existe
+    """
     ejemplar = Ejemplar.query.filter_by(id=id).first()
     if not ejemplar:
         return jsonify({"error":"El ejemplar No existe"}), 404
