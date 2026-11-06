@@ -11,6 +11,7 @@ from models import (
     Usuario, Rol, Biblioteca, Asignacion, libro_autor,
     Libro, Editorial, Autor, Estado, Ejemplar, Prestamo
 )
+from datetime import datetime, timedelta
 
 @pytest.fixture
 def app():
@@ -303,3 +304,35 @@ def exemplares_de_prueba(app, libro_de_prueba, biblioteca_de_prueba, estados_de_
         db.session.commit()
         
         return ejemplares
+
+@pytest.fixture
+def prestamos_de_prueba_bibliotecario(app, exemplares_de_prueba, usuario_de_prueba_bibliotecario, biblioteca_de_prueba, usuario_de_prueba):
+    with app.app_context():
+        prest = Prestamo(
+            ejemplar_id = exemplares_de_prueba[1]["id"],
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            created_by = usuario_de_prueba_bibliotecario["id"],
+            fecha_vencimiento=datetime.utcnow() + timedelta(days=14)
+        )
+        db.session.add(prest)
+        db.session.flush()
+        db.session.commit()
+        
+    return prest
+
+@pytest.fixture
+def prestamos_de_prueba_admin(app, exemplares_de_prueba, usuario_de_prueba_admin, biblioteca_de_prueba, usuario_de_prueba):
+    with app.app_context():
+        prest = Prestamo(
+            ejemplar_id = exemplares_de_prueba[1]["id"],
+            usuario_id = usuario_de_prueba["id"],
+            biblioteca_id = biblioteca_de_prueba["id"],
+            created_by = usuario_de_prueba_admin["id"],
+            fecha_vencimiento=datetime.utcnow() + timedelta(days=14)
+        )
+        db.session.add(prest)
+        db.session.flush()
+        db.session.commit()
+        
+    return prest
