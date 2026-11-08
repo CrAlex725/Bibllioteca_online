@@ -68,3 +68,45 @@ def test_prestamos_get_mine_consulta_exitosa(client, prestamos_de_prueba_bibliot
     assert resp.status_code == 200
     assert len(resp.get_json()) == 1
     
+# GET /prestamos/<id>
+def test_prestamos_get_id_usuario_inexistente(client, app,
+        usuario_de_prueba, token_usuario_comun):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba["id"])
+        db.session.delete(u)
+        db.session.commit()
+    
+    resp = client.get(f'/prestamos/1',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El Usuario No existe"
+    
+def test_prestamos_get_id_prestamo_inexistente(client, token_usuario_comun):
+    resp = client.get(f'/prestamos/9999',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El Prestamo no Existe"
+    
+def test_prestamos_get_id_sin_permiso(client, prestamos_de_prueba_bibliotecario, token_usuario_incompleto):
+    resp = client.get(f'/prestamos/{prestamos_de_prueba_bibliotecario}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "No tienes permiso de realizar esta accion"
+    
+def test_prestamos_get_id_exitoso(client, prestamos_de_prueba_bibliotecario, token_usuario_comun):
+    resp = client.get(f'/prestamos/{prestamos_de_prueba_bibliotecario}',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 200
+    assert resp.get_json()["id"] == prestamos_de_prueba_bibliotecario

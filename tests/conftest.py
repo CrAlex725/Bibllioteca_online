@@ -317,9 +317,10 @@ def prestamos_de_prueba_bibliotecario(app, exemplares_de_prueba, usuario_de_prue
         )
         db.session.add(prest)
         db.session.flush()
+        prest_id = prest.id
         db.session.commit()
         
-    return prest
+    return prest_id
 
 @pytest.fixture
 def prestamos_de_prueba_admin(app, exemplares_de_prueba, usuario_de_prueba_admin, biblioteca_de_prueba, usuario_de_prueba):
