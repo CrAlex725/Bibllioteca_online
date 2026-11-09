@@ -80,7 +80,7 @@ def usuario_de_prueba_perfil_incompleto(app):
             'email': usuario.email,
             'username' : usuario.username,
             'name' : usuario.name,
-            # 'rut' : usuario.rut,
+            'rut' : usuario.rut,
             # 'phone' : usuario.phone,
             # 'address' : usuario.address,
             'password' : "0123456789"
@@ -182,6 +182,7 @@ def usuario_de_prueba_bibliotecario(app):
             "id": usuario.id,
             "username": usuario.username,
             "name": usuario.name,
+            "rut": usuario.rut,
             "email": usuario.email,
             "password": "1234567890"
         }
@@ -290,7 +291,7 @@ def exemplares_de_prueba(app, libro_de_prueba, biblioteca_de_prueba, estados_de_
     with app.app_context():
         libro = Libro.query.filter_by(isbn=libro_de_prueba).first()
         ejemplares={}
-        for numero in [1, 2, 3]:
+        for numero in [1, 2, 3, 4]:
             ejemplar = Ejemplar(
                 libro_id=libro.id,
                 estado_id=estados_de_prueba["disponible"]["id"],

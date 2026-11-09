@@ -311,7 +311,7 @@ def test_exemplars_post_IntegrityError(client, token_bibliotecario,
             json={
                 "biblioteca_id": biblioteca_de_prueba["id"],
                 "libro_id": libro_id,
-                "numero_ejemplar": "4"
+                "numero_ejemplar": "5"
             },
             headers={
                 "Authorization": f"Bearer {token_bibliotecario}"

@@ -20,8 +20,8 @@ def crear_prestamo():
     rut = data.get('rut')
     dias = data.get('dias')
     
-    if not ejemplar_id or not  rut:
-        return jsonify({"error":"los campos ejemplar y usuario son obligatorios"}), 400
+    if not ejemplar_id:
+        return jsonify({"error":"El campo ejemplar es obligatorios"}), 400
     try:
         ejemplar_id = int(ejemplar_id)
     except (TypeError, ValueError):
@@ -64,7 +64,7 @@ def crear_prestamo():
         return jsonify({"error": "La biblioteca no está activa"}), 409
     
     if not biblioteca.is_public:
-        return jsonify({"error":"La bivlioteca no es pública, no puede realizar prestamos"}), 409
+        return jsonify({"error":"La biblioteca no es pública, no puede realizar prestamos"}), 409
     
     if ejemplar.estado.nombre.lower() != 'disponible':
         return jsonify({"error":"El ejemplar no está disponible"}), 409
