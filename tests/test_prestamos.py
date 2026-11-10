@@ -1,6 +1,8 @@
 from models import Usuario, Libro, Biblioteca, Ejemplar, Prestamo, Asignacion, Rol, Estado
 from extensions import db
-from datetime import datetime, timedelta
+from unittest.mock import patch
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta, timezone
 
 # GET / prestamos
 def test_prestamos_get_usuario_inexistente(client, app, usuario_de_prueba, token_usuario_comun):
@@ -174,7 +176,7 @@ def test_prestamos_post_dias_invalido_texto(client, usuario_de_prueba, token_usu
     assert resp.status_code == 400
     assert resp.get_json()["error"] == "dias debe ser un entero"
     
-def test_prestamos_post_dias_invalido(client, usuario_de_prueba, token_usuario_comun, exemplares_de_prueba):
+def test_prestamos_post_dias_en_el_rango(client, usuario_de_prueba, token_usuario_comun, exemplares_de_prueba):
     resp = client.post('/prestamos',
         json={
             "ejemplar_id": exemplares_de_prueba[1]["id"],
@@ -672,3 +674,98 @@ def test_prestamos_post_exitoso_sin_dias(
 
         # fecha_prestamo dentro del intervalo del request
         assert antes - timedelta(seconds=1) <= prestamo.fecha_prestamo <= despues + timedelta(seconds=1)
+        
+# POST /prestamos/<id>/devolver
+def test_prestamos_post_id_devolver_usuario_inexistente(client, app, usuario_de_prueba_admin, 
+    prestamos_de_prueba_bibliotecario, token_admin):
+    with app.app_context():
+        u= db.session.get(Usuario, usuario_de_prueba_admin["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+        headers={
+            "Authorization": f"Bearer {token_admin}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "El usuario No existe"
+    
+def test_prestamos_post_id_devolver_prestamo_inexistente(client, prestamos_de_prueba_bibliotecario, usuario_de_prueba, token_usuario_comun):
+    resp = client.post(f'/prestamos/500/devolver',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "El prestamo No existe"
+    
+def test_prestamos_post_id_devolver_usuario_sin_permiso(client, prestamos_de_prueba_bibliotecario, usuario_de_prueba, token_usuario_comun):
+    resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "No tienes permisos para realizar esta accion"
+    
+def test_prestamos_post_id_devolver_prestamo_ya_devuelto(client, app, prestamos_de_prueba_bibliotecario, token_bibliotecario):
+    with app.app_context():
+        prest = db.session.get(Prestamo, prestamos_de_prueba_bibliotecario)
+        prest.fecha_prestamo = datetime.utcnow() - timedelta(days=5)
+        prest.fecha_devolucion = datetime.utcnow() - timedelta(days=2)
+        db.session.commit()
+        
+    resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El prestamo ya está marcado como devuelto"
+    
+def test_prestamos_post_id_devolver_estado_disponible_inexistente(client, app, prestamos_de_prueba_bibliotecario, 
+    estados_de_prueba, token_bibliotecario):
+    with app.app_context():
+        
+        estado_danado = db.session.get(Estado, estados_de_prueba["dañado"]["id"])
+        Ejemplar.query.filter_by(
+            estado_id=estados_de_prueba["disponible"]["id"]
+        ).update({"estado_id": estado_danado.id})
+        db.session.commit()
+        
+        est = db.session.get(Estado, estados_de_prueba["disponible"]["id"])
+        db.session.delete(est)
+        db.session.commit()
+        
+    resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 500
+    assert resp.get_json()["error"] == "El estado disponible No existe"
+    
+def test_prestamos_post_id_devolver_IntegrityError(client, prestamos_de_prueba_bibliotecario, token_bibliotecario):
+    with patch.object(
+        db.session, 'commit',
+        side_effect=IntegrityError("stmt", "params", "orig")
+    ):
+        
+        resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+            headers={
+                "Authorization": f"Bearer {token_bibliotecario}"
+            })
+    
+    assert resp.status_code == 500
+    assert "algo salió mal" in resp.get_json()["error"]
+    
+def test_prestamos_post_id_devolver_correcto(client, 
+    prestamos_de_prueba_bibliotecario, token_bibliotecario):
+    resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
+    
+    assert resp.status_code == 200
+    
