@@ -11,6 +11,45 @@ prestamos_bp = Blueprint('prestamos', __name__, url_prefix='/prestamos')
 @prestamos_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_prestamo():
+    """
+    Crear Prestamo
+    requiere Autenticación de Admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - ejemplar_id
+            - rut
+          properties:
+            ejemplar_id:
+              type: integer
+            rut:
+              type: string
+            dias: 
+              type: integer
+          description: Datos para crear el prestamo
+    responses:
+      201:
+        description: Creacion exitosa
+      400:
+        description: Datos Inválidos
+      401:
+        description: Usuario No existe
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Uno de los datos NO existe
+      409:
+        description: Conflicto por el usuario solicitante
+      500:
+        description: problemas en el servidor
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -141,6 +180,34 @@ def crear_prestamo():
 @prestamos_bp.route('/<int:id>/devolver', methods=['POST'])
 @jwt_required()
 def devolver_prestamo(id):
+    """
+    Devolver Prestamo
+    requiere Autenticación de Admin O Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+        description: id del prestamo
+    responses:
+      200:
+        description: Devolución exitosa
+      400:
+        description: Datos Inválidos
+      401:
+        description: Usuario No existe
+      403:
+        description: Usuario sin permiso
+      404:
+        description: El prestamo no existe
+      409:
+        description: el prestamo Ya está devuelto
+      500:
+        description: problemas en el servidor
+    """
     user_id = int(get_jwt_identity())
     creador = Usuario.query.filter_by(id=user_id).first()
     
@@ -181,6 +248,18 @@ def devolver_prestamo(id):
 @prestamos_bp.route('/mine', methods=['GET'])
 @jwt_required()
 def mis_prestamos():
+    """
+    Información de Prestamo para el usuario
+    Requiere Autenticacion del usuario
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Consulta exitosa del prestamo
+      401:
+        description: Usuario No existe
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -194,6 +273,20 @@ def mis_prestamos():
 @prestamos_bp.route('', methods=['GET'])
 @jwt_required()
 def todos_los_prestamos():
+    """
+    Todos los Prestamos
+    Requiere autenticacion de admin o Bibliotecario
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Consulta exitosa
+      401:
+        description: Usuario inexistente
+      403:
+        description: Usuario No tiene permiso
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -217,6 +310,28 @@ def todos_los_prestamos():
 @prestamos_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()
 def detalle_prestamo(id):
+    """
+    Información Completa del prestamo
+    Requiere Autenticación
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del prestamo
+    responses:
+      200:
+        description: Consulta exitosa
+      401:
+        description: El usuario ingresado NO existe
+      403:
+        description: El usuario No tiene permiso
+      404:
+        description: El prestamo No existe
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
@@ -232,7 +347,7 @@ def detalle_prestamo(id):
                      usuario.tiene_asignacion_en(prestamo.biblioteca_id) or 
                      prestamo.usuario_id == usuario.id)
     if not tiene_permiso:
-        return jsonify({"error":"No tienes permiso de realizar esta accion"}), 404
+        return jsonify({"error":"No tienes permiso de realizar esta accion"}), 403
     
     return jsonify(prestamo.to_dict()), 200
         
