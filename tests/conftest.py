@@ -335,6 +335,7 @@ def prestamos_de_prueba_admin(app, exemplares_de_prueba, usuario_de_prueba_admin
         )
         db.session.add(prest)
         db.session.flush()
+        prest_id = prest.id
         db.session.commit()
         
-    return prest
+    return prest_id
