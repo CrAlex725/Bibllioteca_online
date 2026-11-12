@@ -46,6 +46,85 @@ def test_prestamos_get_todos_los_prestamos_bibliotecario(client,token_biblioteca
     assert resp.status_code == 200
     assert len(resp.get_json()) == 1
     
+def test_prestamos_get_filtro_is_active_invalido(client,token_bibliotecario, prestamos_de_prueba_admin):
+    resp = client.get('/prestamos', 
+    query_string={
+        "is_active": "no permitido"
+    },
+    headers={
+        "Authorization": f"Bearer {token_bibliotecario}"
+    })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "is_active debe ser true o false"
+    
+def test_prestamos_get_filtro_vencidos_invalido(client,token_bibliotecario, prestamos_de_prueba_admin):
+    resp = client.get('/prestamos', 
+    query_string={
+        "vencidos": "no permitido"
+    },
+    headers={
+        "Authorization": f"Bearer {token_bibliotecario}"
+    })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "vencidos debe ser true o false"
+    
+def test_prestamos_get_filtro_is_active_valido(client,token_bibliotecario, prestamos_de_prueba_admin):
+    resp = client.get('/prestamos', 
+    query_string={
+        "is_active": "true"
+    },
+    headers={
+        "Authorization": f"Bearer {token_bibliotecario}"
+    })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    assert all(p["is_active"] is True for p in data)
+    
+def test_prestamos_get_filtro_vencidos_valido(client, app, token_bibliotecario, prestamos_de_prueba_admin):
+    with app.app_context():
+        prestamo = db.session.get(Prestamo, prestamos_de_prueba_admin)
+        prestamo.fecha_vencimiento = datetime.utcnow() - timedelta(days=5)
+        db.session.commit()
+    
+    resp = client.get('/prestamos', 
+        query_string={"vencidos": "true"},
+        headers={"Authorization": f"Bearer {token_bibliotecario}"})
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data) >= 1
+    assert all(p["fecha_devolucion"] is None for p in data)
+    
+def test_prestamos_get_filtro_is_active_false(client, app, token_bibliotecario, prestamos_de_prueba_admin):
+    with app.app_context():
+        prestamo = db.session.get(Prestamo, prestamos_de_prueba_admin)
+        prestamo.is_active = False
+        db.session.commit()
+    
+    resp = client.get('/prestamos', 
+        query_string={"is_active": "false"},
+        headers={"Authorization": f"Bearer {token_bibliotecario}"})
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data) >= 1
+    assert all(p["is_active"] is False for p in data)
+    
+def test_prestamos_get_filtro_vencidos_false_no_filtra(client, token_bibliotecario, prestamos_de_prueba_admin):
+        
+    resp = client.get('/prestamos', 
+        query_string={"vencidos": "false"},
+        headers={"Authorization": f"Bearer {token_bibliotecario}"})
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data) >= 1
+    
 # Get / prestamos/mine
 def test_prestamos_get_mine_usuario_inexistente(client, app,
         usuario_de_prueba, token_usuario_comun):
@@ -102,7 +181,7 @@ def test_prestamos_get_id_sin_permiso(client, prestamos_de_prueba_bibliotecario,
             "Authorization": f"Bearer {token_usuario_incompleto}"
         })
     
-    assert resp.status_code == 404
+    assert resp.status_code == 403
     assert resp.get_json()["error"] == "No tienes permiso de realizar esta accion"
     
 def test_prestamos_get_id_exitoso(client, prestamos_de_prueba_bibliotecario, token_usuario_comun):
