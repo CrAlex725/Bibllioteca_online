@@ -326,6 +326,7 @@ class Prestamo(db.Model):
     fecha_prestamo = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     fecha_vencimiento = db.Column(db.DateTime, nullable=False)
     fecha_devolucion = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     ejemplar = db.relationship('Ejemplar', back_populates='prestamos')
     usuario = db.relationship('Usuario', foreign_keys=[usuario_id], back_populates='prestamos_como_usuario')
@@ -358,5 +359,6 @@ class Prestamo(db.Model):
             "creador": {
                 "id": self.creador.id,
                 "name": self.creador.name
-            }
+            },
+            "is_active": self.is_active
         }
