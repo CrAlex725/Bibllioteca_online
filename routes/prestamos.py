@@ -163,7 +163,8 @@ def crear_prestamo():
         biblioteca_id=biblioteca.id,
         fecha_prestamo=ahora,
         fecha_vencimiento =vencimiento,
-        created_by=creador.id
+        created_by=creador.id,
+        is_active = True
     )
     
     try:
@@ -238,6 +239,7 @@ def devolver_prestamo(id):
     try:
         prestamo.fecha_devolucion = ahora
         prestamo.ejemplar.estado_id = estado_disponible.id
+        prestamo.is_active = False
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -279,9 +281,22 @@ def todos_los_prestamos():
     ---
     security:
       - Bearer: []
+    parameters:
+      - name: is_active
+        in: query
+        type: boolean
+        required: false
+        description: Filtrar por préstamos activos o devueltos
+      - name: vencidos
+        in: query
+        type: boolean
+        required: false
+        description: Filtrar por préstamos vencidos
     responses:
       200:
         description: Consulta exitosa
+      400:
+        description: Valor de filtro Inválido
       401:
         description: Usuario inexistente
       403:
@@ -293,6 +308,9 @@ def todos_los_prestamos():
     if not usuario:
         return jsonify({"error":"El Usuario No existe"}), 401
     
+    is_active = request.args.get('is_active')
+    vencidos = request.args.get('vencidos')
+    
     query = Prestamo.query
     
     if not usuario.es_admin():
@@ -301,7 +319,28 @@ def todos_los_prestamos():
     
         biblioteca_ids = [a.biblioteca_id for a in usuario.asignaciones]
         query = query.filter(Prestamo.biblioteca_id.in_(biblioteca_ids))
+    
+    if is_active is not None:
+        if is_active.lower() in ("true", "1"):
+            query = query.filter(Prestamo.is_active == True)
+        elif is_active.lower() in ("false", "0"):
+            query = query.filter(Prestamo.is_active == False)
+        else :
+            return jsonify({"error":"is_active debe ser true o false"}), 400
         
+        
+    if vencidos is not None:
+        if vencidos.lower() in ("true", "1"):
+            ahora = datetime.utcnow()
+            query = query.filter(
+                Prestamo.fecha_devolucion.is_(None),
+                Prestamo.fecha_vencimiento < ahora
+            )
+        elif vencidos.lower() in ("false", "0"):
+            pass
+        else:
+            return jsonify({"error": "vencidos debe ser true o false"}), 400
+    
     prestamos = query.order_by(Prestamo.fecha_prestamo.desc()
     ).all()
         
