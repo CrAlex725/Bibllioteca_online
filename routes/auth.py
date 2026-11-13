@@ -2,6 +2,7 @@ from flask import jsonify, request, Blueprint
 from models import Usuario
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from extensions import db
+from helpers import normalizar_rut
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -149,4 +150,68 @@ def profile():
     if not usuario:
         return jsonify({"error":"El usuario No está Autorizado"}), 404
     
+    return jsonify(usuario.to_dict()), 200
+
+@auth_bp.route('/profile/completer', methods=["PUT"])
+@jwt_required()
+def completer_profile():
+    """
+    
+    """
+    user_id = int(get_jwt_identity())
+    usuario = Usuario.query.filter_by(id=user_id).first()
+    
+    if not usuario:
+        return jsonify({"error":"Usuario No existe"}), 401
+      
+    data = request.get_json(silent=True)
+    
+    if not data:
+      return jsonify({"error":"JSON Invalido o vacío"}), 400
+    
+    if 'username' in data:
+        if data['username'].strip() == "":
+            return jsonify({"error":"El username debe ser valido"}), 400
+          
+        user = Usuario.query.filter_by(username=data['username']).first()
+        if user and user.id != usuario.id:
+            return jsonify({"error":"El nombre de usuario Ya existe"}), 409
+        usuario.username = data['username']
+        
+    if 'phone' in data:
+        if data['phone'].strip() == "":
+            return jsonify({"error":"El telefono debe ser valido"}), 400
+          
+        user = Usuario.query.filter_by(phone=data['phone']).first()
+        if user and user.id != usuario.id:
+            return jsonify({"error":"El numero telefonico esta en uso"}), 409
+        usuario.phone = data['phone']
+        
+    if 'rut' in data:
+        if data['rut'].strip() == "":
+            return jsonify({"error":"El rut debe ser valido"}), 400
+          
+        rut_normalizado = normalizar_rut(data['rut'])
+        user = Usuario.query.filter(
+                db.func.replace(db.func.replace(Usuario.rut, '-', ''), '.', '') == rut_normalizado,
+                Usuario.id != usuario.id
+            ).first()
+          
+        if user:
+            return jsonify({"error":"El rut Ya esta en uso"}), 409
+        usuario.rut = data['rut']
+        
+        
+    if 'address' in data:
+        if data['address'].strip() == "":
+            return jsonify({"error":"La direccion debe ser valida"}), 400
+        usuario.address = data['address']
+        
+    if 'password' in data:
+        if data['password'].strip() == "":
+            return jsonify({"error":"La contraseña no puede estar vacía"}), 400
+          
+        usuario.set_password(data['password'])
+        
+    db.session.commit()
     return jsonify(usuario.to_dict()), 200
