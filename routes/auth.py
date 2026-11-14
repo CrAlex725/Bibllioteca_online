@@ -156,7 +156,38 @@ def profile():
 @jwt_required()
 def completer_profile():
     """
-    
+    Completar perfil del usuario autenticado.
+    Permite actualizar username, phone, rut, address y password.
+    Los campos no enviados no se modifican.
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            phone:
+              type: string
+            rut:
+              type: string
+            address:
+              type: string
+            password:
+              type: string
+    responses:
+      200:
+        description: Perfil actualizado
+      400:
+        description: Datos inválidos
+      401:
+        description: Usuario no existe o token inválido
+      409:
+        description: Campo duplicado (username, phone, rut o email)
     """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
