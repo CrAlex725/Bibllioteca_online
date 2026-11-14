@@ -242,3 +242,223 @@ def test_profile_correcto(client):
     
     assert resp.status_code == 200
     assert resp.get_json()["email"] == "ab.cdef.123@gmail.com"
+    
+# PUT / profile/complete
+def test_profile_complete_usuario_inexistente(client, app, usuario_de_prueba_perfil_incompleto, token_usuario_incompleto):
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba_perfil_incompleto["id"])
+        db.session.delete(u)
+        db.session.commit()
+        
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Usuario No existe"
+    
+def test_profile_complete_sin_token(client, app, token_usuario_incompleto, usuario_de_prueba_perfil_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+        })
+    
+    assert resp.status_code == 401
+
+def test_profile_complete_json_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json=None,
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "JSON Invalido o vacío"
+    
+def test_profile_complete_username_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"",
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El username debe ser valido"
+    
+def test_profile_complete_username_en_uso(client, token_usuario_incompleto, usuario_de_prueba):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username": usuario_de_prueba["username"],
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El nombre de usuario Ya existe"
+    
+def test_profile_complete_phone_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El telefono debe ser valido"
+    
+def test_profile_complete_phone_en_uso(client, token_usuario_incompleto, usuario_de_prueba):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":usuario_de_prueba["phone"],
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El numero telefonico esta en uso"
+    
+def test_profile_complete_rut_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut":"",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "El rut debe ser valido"
+    
+def test_profile_complete_rut_en_uso(client, token_usuario_incompleto, usuario_de_prueba):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut": usuario_de_prueba["rut"],
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El rut Ya esta en uso"
+    
+def test_profile_complete_address_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "La direccion debe ser valida"
+    
+def test_profile_complete_password_invalido(client, token_usuario_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":""
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "La contraseña no puede estar vacía"
+    
+def test_profile_complete_actualizar_todos_los_campos(client, app, token_usuario_incompleto, usuario_de_prueba_perfil_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "username":"Nuevo_Usuario",
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+            "password":"Nueva_contraseña"
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["user_name"] == "Nuevo_Usuario"
+    assert data["phone"] == "988345002"
+    assert data["rut"] == "20.222.883-7"
+    assert data["address"] == "Direccion A113"
+    
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba_perfil_incompleto["id"])
+        check = u.check_password("Nueva_contraseña")
+        
+    assert check == True
+    
+def test_profile_complete_actualizar_campos_parciales(client, app, token_usuario_incompleto, usuario_de_prueba_perfil_incompleto):
+    resp = client.put('/auth/profile/completer',
+        json={
+            "phone":"988345002",
+            "rut":"20.222.883-7",
+            "address":"Direccion A113",
+        },
+        headers={
+            "Authorization":f"Bearer {token_usuario_incompleto}"
+        })
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    
+    with app.app_context():
+        u = db.session.get(Usuario, usuario_de_prueba_perfil_incompleto["id"])
+        phone = u.phone
+        rut = u.rut
+        address = u.address
+        
+    assert data["phone"] == phone
+    assert data["rut"] == rut
+    assert data["address"] == address
