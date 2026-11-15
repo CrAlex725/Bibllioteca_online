@@ -36,6 +36,11 @@ def listar_ejemplares():
         type: string
         required: false
         description: Booleano de disponibilidad
+      - name: incluir_baja
+        in: query
+        type: boolean
+        required: false
+        description: Incluir ejemplares en estado "de baja" (default false)
     responses:
       200:
         description: Consulta existosa
@@ -44,6 +49,7 @@ def listar_ejemplares():
     biblioteca_id = request.args.get('biblioteca_id')
     estado_id = request.args.get('estado_id')
     disponibilidad = request.args.get('disponibilidad')
+    incluir_baja = request.args.get('incluir_baja', 'false').lower() == 'true'
     
     query = Ejemplar.query
 
@@ -55,6 +61,9 @@ def listar_ejemplares():
         
     if estado_id:
         query = query.filter(Ejemplar.estado_id == int(estado_id))
+        
+    if not incluir_baja:
+      query = query.filter(Ejemplar.estado.has(db.func.lower(Estado.nombre) != "de baja"))
         
     if disponibilidad and disponibilidad.lower() == "true":
         query = query.filter(Ejemplar.estado.has(db.func.lower(Estado.nombre) == "disponible"))

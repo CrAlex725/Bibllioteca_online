@@ -28,6 +28,34 @@ def test_exemplars_get_filtros_parciales(client, app, exemplares_de_prueba, toke
     assert resp.status_code == 200
     assert len(resp.get_json()) > 0
     
+def test_exemplars_get_incluir_baja(client, app, token_usuario_comun, exemplares_de_prueba, estados_de_prueba):
+    with app.app_context():
+        ejemplar = db.session.get(Ejemplar, exemplares_de_prueba[1]["id"])
+        ejemplar.estado_id = estados_de_prueba["de baja"]["id"]
+        db.session.commit()
+    
+    resp = client.get('/exemplars?incluir_baja=true',
+        headers={"Authorization": f"Bearer {token_usuario_comun}"})
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    ids = [e["id"] for e in data]
+    assert exemplares_de_prueba[1]["id"] in ids
+    
+def test_exemplars_get_excluye_baja_por_defecto(client, app, token_usuario_comun, exemplares_de_prueba, estados_de_prueba):
+    with app.app_context():
+        ejemplar = db.session.get(Ejemplar, exemplares_de_prueba[1]["id"])
+        ejemplar.estado_id = estados_de_prueba["de baja"]["id"]
+        db.session.commit()
+    
+    resp = client.get('/exemplars',
+        headers={"Authorization": f"Bearer {token_usuario_comun}"})
+    
+    assert resp.status_code == 200
+    data = resp.get_json()
+    ids = [e["id"] for e in data]
+    assert exemplares_de_prueba[1]["id"] not in ids
+    
 def test_exemplars_get_todos_los_filtros(client, app, exemplares_de_prueba, token_usuario_comun, 
         biblioteca_de_prueba, libro_de_prueba, estados_de_prueba):
     with app.app_context():
