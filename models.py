@@ -1,5 +1,6 @@
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import timezone
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -323,9 +324,9 @@ class Prestamo(db.Model):
     biblioteca_id = db.Column(db.Integer, db.ForeignKey('bibliotecas.id'), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     
-    fecha_prestamo = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
-    fecha_vencimiento = db.Column(db.DateTime, nullable=False)
-    fecha_devolucion = db.Column(db.DateTime)
+    fecha_prestamo = db.Column(db.DateTime(timezone=True), default=db.func.current_timestamp(), nullable=False)
+    fecha_vencimiento = db.Column(db.DateTime(timezone=True), nullable=False)
+    fecha_devolucion = db.Column(db.DateTime(timezone=True))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     ejemplar = db.relationship('Ejemplar', back_populates='prestamos')

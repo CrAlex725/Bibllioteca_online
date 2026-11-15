@@ -11,7 +11,7 @@ from models import (
     Usuario, Rol, Biblioteca, Asignacion, libro_autor,
     Libro, Editorial, Autor, Estado, Ejemplar, Prestamo
 )
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 @pytest.fixture
 def app():
@@ -314,7 +314,7 @@ def prestamos_de_prueba_bibliotecario(app, exemplares_de_prueba, usuario_de_prue
             usuario_id = usuario_de_prueba["id"],
             biblioteca_id = biblioteca_de_prueba["id"],
             created_by = usuario_de_prueba_bibliotecario["id"],
-            fecha_vencimiento=datetime.utcnow() + timedelta(days=14)
+            fecha_vencimiento=datetime.now(timezone.utc) + timedelta(days=14)
         )
         db.session.add(prest)
         db.session.flush()
@@ -331,7 +331,7 @@ def prestamos_de_prueba_admin(app, exemplares_de_prueba, usuario_de_prueba_admin
             usuario_id = usuario_de_prueba["id"],
             biblioteca_id = biblioteca_de_prueba["id"],
             created_by = usuario_de_prueba_admin["id"],
-            fecha_vencimiento=datetime.utcnow() + timedelta(days=14)
+            fecha_vencimiento=datetime.now(timezone.utc) + timedelta(days=14)
         )
         db.session.add(prest)
         db.session.flush()

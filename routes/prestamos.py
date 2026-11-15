@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from models import (Usuario,Ejemplar, Asignacion, Prestamo, Estado)
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from helpers import normalizar_rut
 
 prestamos_bp = Blueprint('prestamos', __name__, url_prefix='/prestamos')
@@ -129,7 +129,7 @@ def crear_prestamo():
     if asignacion.rol.name.lower() not in ["lector", "bibliotecario", "asistente"]:
         return jsonify({"error":"El rol del usuario No tiene permiso para pedir prestado"}), 403
     
-    ahora = datetime.utcnow()
+    ahora = datetime.now(timezone.utc)
     
     prestamo_vencido = Prestamo.query.filter(
         Prestamo.usuario_id == usuario_destinatario.id,
@@ -234,7 +234,7 @@ def devolver_prestamo(id):
     if not estado_disponible:
         return jsonify({"error":"El estado disponible No existe"}) ,500
     
-    ahora = datetime.utcnow()
+    ahora = datetime.now(timezone.utc)
     
     try:
         prestamo.fecha_devolucion = ahora
@@ -331,7 +331,7 @@ def todos_los_prestamos():
         
     if vencidos is not None:
         if vencidos.lower() in ("true", "1"):
-            ahora = datetime.utcnow()
+            ahora = datetime.now(timezone.utc)
             query = query.filter(
                 Prestamo.fecha_devolucion.is_(None),
                 Prestamo.fecha_vencimiento < ahora

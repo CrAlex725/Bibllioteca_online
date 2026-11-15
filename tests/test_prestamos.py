@@ -88,7 +88,7 @@ def test_prestamos_get_filtro_is_active_valido(client,token_bibliotecario, prest
 def test_prestamos_get_filtro_vencidos_valido(client, app, token_bibliotecario, prestamos_de_prueba_admin):
     with app.app_context():
         prestamo = db.session.get(Prestamo, prestamos_de_prueba_admin)
-        prestamo.fecha_vencimiento = datetime.utcnow() - timedelta(days=5)
+        prestamo.fecha_vencimiento = datetime.now(timezone.utc) - timedelta(days=5)
         db.session.commit()
     
     resp = client.get('/prestamos', 
@@ -523,7 +523,7 @@ def test_prestamos_post_destinatario_con_rol_no_permitido(
                 usuario_id=us_id,
                 biblioteca_id=biblioteca_de_prueba["id"],
                 created_by=usuario_de_prueba_bibliotecario["id"],
-                fecha_vencimiento=datetime.utcnow() - timedelta(days=5),
+                fecha_vencimiento=datetime.now(timezone.utc) - timedelta(days=5),
             ))
         db.session.commit()
 
@@ -556,7 +556,7 @@ def test_prestamos_post_usuario_con_tres_prestamos_activos(
                 usuario_id=usuario_de_prueba["id"],
                 biblioteca_id=biblioteca_de_prueba["id"],
                 created_by=usuario_de_prueba_bibliotecario["id"],
-                fecha_vencimiento=datetime.utcnow() + timedelta(days=10),
+                fecha_vencimiento=datetime.now(timezone.utc) + timedelta(days=10),
             ))
         db.session.commit()
 
@@ -659,7 +659,7 @@ def test_prestamos_post_exitoso_con_dias(
         ))
         db.session.commit()
 
-    antes = datetime.utcnow()
+    antes = datetime.now(timezone.utc)
 
     resp = client.post('/prestamos',
         json={
@@ -671,7 +671,7 @@ def test_prestamos_post_exitoso_con_dias(
             "Authorization": f"Bearer {token_bibliotecario}"
         })
 
-    despues = datetime.utcnow()
+    despues = datetime.now(timezone.utc)
 
     assert resp.status_code == 201
     body = resp.get_json()
@@ -714,7 +714,7 @@ def test_prestamos_post_exitoso_sin_dias(
         ))
         db.session.commit()
 
-    antes = datetime.utcnow()
+    antes = datetime.now(timezone.utc)
 
     resp = client.post('/prestamos',
         json={
@@ -725,7 +725,7 @@ def test_prestamos_post_exitoso_sin_dias(
             "Authorization": f"Bearer {token_bibliotecario}"
         })
 
-    despues = datetime.utcnow()
+    despues = datetime.now(timezone.utc)
 
     assert resp.status_code == 201
     body = resp.get_json()
@@ -791,8 +791,8 @@ def test_prestamos_post_id_devolver_usuario_sin_permiso(client, prestamos_de_pru
 def test_prestamos_post_id_devolver_prestamo_ya_devuelto(client, app, prestamos_de_prueba_bibliotecario, token_bibliotecario):
     with app.app_context():
         prest = db.session.get(Prestamo, prestamos_de_prueba_bibliotecario)
-        prest.fecha_prestamo = datetime.utcnow() - timedelta(days=5)
-        prest.fecha_devolucion = datetime.utcnow() - timedelta(days=2)
+        prest.fecha_prestamo = datetime.now(timezone.utc) - timedelta(days=5)
+        prest.fecha_devolucion = datetime.now(timezone.utc) - timedelta(days=2)
         db.session.commit()
         
     resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
