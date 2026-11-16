@@ -242,6 +242,12 @@ class Autor(db.Model):
     
     libros = db.relationship('Libro', secondary=libro_autor, back_populates='autores')
     
+    def to_dict(self):
+        return{
+            "id" : self.id,
+            "nombre" : self.nombre
+        }
+    
     def __repr__(self):
         return f'<Autor {self.nombre}>'
     

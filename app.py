@@ -15,6 +15,7 @@ from routes.exemplars import exemplars_bp
 from routes.editorials import editorial_bp
 from routes.prestamos import prestamos_bp
 from routes.asignaciones import asignaciones_bp
+from routes.authors import autores_bp
 
 load_dotenv(override=False)
 
@@ -49,6 +50,7 @@ app.register_blueprint(exemplars_bp)
 app.register_blueprint(editorial_bp)
 app.register_blueprint(prestamos_bp)
 app.register_blueprint(asignaciones_bp)
+app.register_blueprint(autores_bp)
     
 if __name__ == '__main__':
     app.run(debug=True)
