@@ -9,6 +9,20 @@ autores_bp = Blueprint('authors', __name__, url_prefix='/authors')
 
 @autores_bp.route('', methods=['GET'])
 def todos_los_autores():
+    """
+    Lista de todos los autores en la base de datos
+    No requiere autenticacion
+    ---
+    parameters:
+      - name: nombre
+        in: query
+        type: string
+        required: false
+        description: autor a buscar
+    responses:
+      200:
+        description: Consulta exitosa
+    """
     nombre = request.args.get('nombre')
     
     query = Autor.query
@@ -21,6 +35,22 @@ def todos_los_autores():
 
 @autores_bp.route('/<int:id>', methods=['GET'])
 def detalle_autor(id):
+    """
+    Información del Autor seleccionado
+    No requiere autenticacion
+    ---
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del autor
+    responses:
+      200:
+        description: Consulta exitosa
+      404:
+        description: Autor No existe
+    """
     autor = Autor.query.filter_by(id=id).first()
     
     if not autor:
@@ -31,6 +61,34 @@ def detalle_autor(id):
 @autores_bp.route('', methods=['POST'])
 @jwt_required()
 def crear_autor():
+    """
+    Crear Autor
+    Requiere autenticación y permisos de administrador
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            nombre:
+              type: string
+          description: Nombre del Autor
+    responses:
+      201:
+        description: Creacion exitosa
+      400:
+        description: datos invalidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      409:
+        description: Autor ya existente
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -70,6 +128,41 @@ def crear_autor():
 @autores_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def actualizar_autor(id):
+    """
+    Actualizar Autor
+    Requiere autenticación y permisos de administrador
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+        description: id del autor
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            nombre:
+              type: string
+          description: Nuevo Nombre del Autor
+    responses:
+      200:
+        description: Actualizacion exitosa
+      400:
+        description: datos invalidos
+      401:
+        description: Usuario Inexistente
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Autor inexistente
+      409:
+        description: Autor ya existente
+    """
     data = request.get_json(silent=True)
     
     if not data:
@@ -111,6 +204,30 @@ def actualizar_autor(id):
 @autores_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_autor(id):
+    """
+    Eliminar un autor que no tenga libros
+    Requiere autenticación y permisos de administrador
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: id del Autor
+    responses:
+      204:
+        description: Eliminación exitosa
+      401:
+        description: Usuario inexistente
+      403:
+        description: Usuario sin permiso
+      404:
+        description: Autor inexistente
+      409:
+        description: El autor tiene libros asociados
+    """
     user_id = int(get_jwt_identity())
     usuario = Usuario.query.filter_by(id=user_id).first()
     
