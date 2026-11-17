@@ -600,8 +600,6 @@ def test_prestamos_post_integrity_error(
     client, app, usuario_de_prueba, token_bibliotecario, exemplares_de_prueba,
     biblioteca_de_prueba, roles_de_prueba, monkeypatch
 ):
-    from sqlalchemy.exc import IntegrityError
-
     with app.app_context():
         db.session.add(Asignacion(
             usuario_id=usuario_de_prueba["id"],

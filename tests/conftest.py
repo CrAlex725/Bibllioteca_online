@@ -339,3 +339,16 @@ def prestamos_de_prueba_admin(app, exemplares_de_prueba, usuario_de_prueba_admin
         db.session.commit()
         
     return prest_id
+
+@pytest.fixture
+def autores_de_prueba(app):
+    with app.app_context():
+        autores = {}
+        for elemento in range(1,6):
+            autor = Autor(nombre = f"Autor {elemento}")
+            db.session.add(autor)
+            db.session.flush()
+            autores[elemento] = {"id": autor.id, "nombre": autor.nombre}
+        db.session.commit()
+        
+    return autores
