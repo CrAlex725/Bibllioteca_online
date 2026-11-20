@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flasgger import Swagger
 
+from flask_cors import CORS
 
 from extensions import db, jwt
 from routes.auth import auth_bp
@@ -20,6 +21,8 @@ from routes.authors import autores_bp
 load_dotenv(override=False)
 
 app = Flask(__name__)
+
+CORS(app, origins=["http://127.0.0.1:5500", "http://localhost:5500", "null"])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
