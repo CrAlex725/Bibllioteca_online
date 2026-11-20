@@ -1,0 +1,98 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f8;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;   /* centra horizontal */
+  align-items: center;       /* centra vertical */
+  padding: 16px;
+}
+
+.auth-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;          /* ancho máximo en desktop */
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;                 /* separación entre inputs */
+}
+
+.auth-form h2 {
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
+.auth-form input {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #2563eb;     /* azul al enfocar */
+}
+
+.auth-form button {
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.auth-form button:hover {
+  background: #1d4ed8;
+}
+
+.hidden {
+  display: none;             /* oculta el form de registro al inicio */
+}
+
+.mensaje {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.mensaje.error {
+  color: #dc2626;
+}
+
+.mensaje.exito {
+  color: #16a34a;
+}
+
+.toggle {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.toggle a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+/* Responsive: en pantallas muy pequeñas reducimos padding */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 20px;
+  }
+}
