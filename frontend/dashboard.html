@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>AiLibrary - Dashboard</title>
+</head>
+<body>
+  <h1>Dashboard (en construcción)</h1>
+  <button id="logout-btn">Cerrar sesión</button>
+  <script>
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>
