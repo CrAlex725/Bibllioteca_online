@@ -784,7 +784,7 @@ def test_prestamos_post_id_devolver_usuario_sin_permiso(client, prestamos_de_pru
         })
     
     assert resp.status_code == 403
-    assert resp.get_json()["error"] == "No tienes permisos para realizar esta accion"
+    assert resp.get_json()["error"] == "No tienes permisos para realizar esta acción"
     
 def test_prestamos_post_id_devolver_prestamo_ya_devuelto(client, app, prestamos_de_prueba_bibliotecario, token_bibliotecario):
     with app.app_context():

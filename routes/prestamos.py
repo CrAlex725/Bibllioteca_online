@@ -93,8 +93,14 @@ def crear_prestamo():
     if not ejemplar:
         return jsonify({"error":"El ejemplar NO existe"}), 404
     
+    asignacion_creador = Asignacion.query.filter_by(
+        usuario_id=creador.id,
+        biblioteca_id=ejemplar.biblioteca_id
+    ).first()
     if not creador.es_admin():
-        if not creador.tiene_asignacion_en(ejemplar.biblioteca_id):
+        if not asignacion_creador or asignacion_creador.rol.name.lower() not in (
+            "bibliotecario", "asistente"
+        ):
             return jsonify({"error":"No tienes permiso para realizar esta accion"}), 403
         
     biblioteca = ejemplar.biblioteca
@@ -220,9 +226,20 @@ def devolver_prestamo(id):
     if not prestamo:
         return jsonify({"error":"El prestamo No existe"}), 404
     
+        
+    asignacion_creador = Asignacion.query.filter_by(
+        usuario_id=creador.id,
+        biblioteca_id=prestamo.ejemplar.biblioteca_id
+        ).first()
+
     if not creador.es_admin():
-        if not creador.tiene_asignacion_en(prestamo.biblioteca_id):
-            return jsonify({"error":"No tienes permisos para realizar esta accion"}), 403
+        if not asignacion_creador or asignacion_creador.rol.name.lower() not in (
+            "bibliotecario",
+            "asistente"
+        ):
+            return jsonify({
+                "error": "No tienes permisos para realizar esta acción"
+            }), 403
     
     if prestamo.fecha_devolucion is not None:
         return jsonify({"error":"El prestamo ya está marcado como devuelto"}), 409
@@ -382,9 +399,10 @@ def detalle_prestamo(id):
     if not prestamo:
         return jsonify({"error":"El Prestamo no Existe"}), 404
     
-    tiene_permiso = (usuario.es_admin() or 
-                     usuario.tiene_asignacion_en(prestamo.biblioteca_id) or 
-                     prestamo.usuario_id == usuario.id)
+    tiene_permiso = (
+        usuario.es_admin()
+        or usuario.tiene_asignacion_en(prestamo.biblioteca_id)
+        or prestamo.usuario_id == usuario.id)
     if not tiene_permiso:
         return jsonify({"error":"No tienes permiso de realizar esta accion"}), 403
     
