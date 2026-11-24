@@ -255,6 +255,20 @@ def test_prestamos_post_dias_invalido_texto(client, usuario_de_prueba, token_usu
     assert resp.status_code == 400
     assert resp.get_json()["error"] == "dias debe ser un entero"
     
+def test_prestamos_post_dias_booleano(client, usuario_de_prueba, token_usuario_comun, exemplares_de_prueba):
+    resp = client.post('/prestamos',
+        json={
+            "ejemplar_id": exemplares_de_prueba[1]["id"],
+            "rut": usuario_de_prueba["rut"],
+            "dias": True
+        },
+        headers={
+            "Authorization": f"Bearer {token_usuario_comun}"
+        })
+    
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "dias debe ser un entero"
+    
 def test_prestamos_post_dias_en_el_rango(client, usuario_de_prueba, token_usuario_comun, exemplares_de_prueba):
     resp = client.post('/prestamos',
         json={

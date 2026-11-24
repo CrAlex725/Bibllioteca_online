@@ -71,10 +71,13 @@ def crear_prestamo():
     if not rut:
         return jsonify({"error":"El rut es obligatorio"}), 400
     
-    if not dias:
+    if dias is None: 
         dias = 14
     else:
         try:
+            if isinstance(dias, bool):
+                raise ValueError
+            
             dias =int(dias)
         except(TypeError, ValueError):
             return jsonify({"error":"dias debe ser un entero"}), 400
@@ -229,7 +232,7 @@ def devolver_prestamo(id):
         
     asignacion_creador = Asignacion.query.filter_by(
         usuario_id=creador.id,
-        biblioteca_id=prestamo.ejemplar.biblioteca_id
+        biblioteca_id=prestamo.biblioteca_id
         ).first()
 
     if not creador.es_admin():
@@ -331,11 +334,20 @@ def todos_los_prestamos():
     query = Prestamo.query
     
     if not usuario.es_admin():
-        if not usuario.es_bibliotecario():
+        biblioteca_ids = [
+            a.biblioteca_id
+            for a in usuario.asignaciones
+            if a.rol.name.lower() in (
+                "bibliotecario",
+                "asistente"
+            )
+        ]
+        if not biblioteca_ids:
             return jsonify({"error":"No puedes ver esta información"}), 403
     
-        biblioteca_ids = [a.biblioteca_id for a in usuario.asignaciones]
-        query = query.filter(Prestamo.biblioteca_id.in_(biblioteca_ids))
+        query = query.filter(
+            Prestamo.biblioteca_id.in_(biblioteca_ids)
+        )
     
     if is_active is not None:
         if is_active.lower() in ("true", "1"):
@@ -354,7 +366,14 @@ def todos_los_prestamos():
                 Prestamo.fecha_vencimiento < ahora
             )
         elif vencidos.lower() in ("false", "0"):
-            pass
+            ahora = datetime.now(timezone.utc)
+            
+            query = query.filter(
+                db.or_(
+                    Prestamo.fecha_devolucion.is_not(None),
+                    Prestamo.fecha_vencimiento >= ahora
+                )
+            )
         else:
             return jsonify({"error": "vencidos debe ser true o false"}), 400
     
@@ -399,10 +418,22 @@ def detalle_prestamo(id):
     if not prestamo:
         return jsonify({"error":"El Prestamo no Existe"}), 404
     
+    asignacion = Asignacion.query.filter_by(
+        usuario_id=usuario.id,
+        biblioteca_id=prestamo.biblioteca_id
+        ).first()
+    
     tiene_permiso = (
         usuario.es_admin()
-        or usuario.tiene_asignacion_en(prestamo.biblioteca_id)
-        or prestamo.usuario_id == usuario.id)
+        or prestamo.usuario_id == usuario.id
+        or(
+            asignacion is not None
+            and asignacion.rol.name.lower() in (
+                "bibliotecario",
+                "asistente"
+            )
+        )
+    )
     if not tiene_permiso:
         return jsonify({"error":"No tienes permiso de realizar esta accion"}), 403
     
