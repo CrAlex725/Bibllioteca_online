@@ -1,6 +1,7 @@
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timezone
+from sqlalchemy import text
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -323,6 +324,28 @@ class Ejemplar(db.Model):
     
 class Prestamo(db.Model):
     __tablename__ = 'prestamos'
+    
+    __table_args__ = (
+        db.CheckConstraint(
+            # Impide guardar un préstamo con estados contradictorios
+            'is_active = (fecha_devolucion IS NULL)',
+            name ='ck_prestamo_estado_coherente'
+        ),
+        
+        db.CheckConstraint(
+            # Impide crear prestamos con fecha de vencimiento 
+            # sea anterior o igual a la decha de prestamo
+            'fecha_vencimiento > fecha_prestamo',
+            name='ck_prestamo_fechas_validas'
+        ),
+        db.Index(
+            # Indice unico parcial de PostgreSQL
+            'uq_prestamo_ejemplar_activo',
+            'ejemplar_id',
+            unique=True,
+            postgresql_where=text('is_active IS TRUE')
+        )
+    )
     
     id = db.Column(db.Integer, primary_key=True)
     ejemplar_id = db.Column(db.Integer, db.ForeignKey('ejemplares.id'), nullable=False)

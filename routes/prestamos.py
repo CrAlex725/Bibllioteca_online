@@ -224,7 +224,7 @@ def devolver_prestamo(id):
     if not creador:
         return jsonify({"error":"El usuario No existe"}), 401
     
-    prestamo = Prestamo.query.filter_by(id=id).first()
+    prestamo = Prestamo.query.filter_by(id=id).with_for_update().first()
     
     if not prestamo:
         return jsonify({"error":"El prestamo No existe"}), 404
@@ -258,13 +258,13 @@ def devolver_prestamo(id):
     
     try:
         prestamo.fecha_devolucion = ahora
-        prestamo.ejemplar.estado_id = estado_disponible.id
         prestamo.is_active = False
+        prestamo.ejemplar.estado_id = estado_disponible.id
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error":"algo salió mal en el proceso de devolucion"}), 500
-    
+        return jsonify({"error": "algo salió mal en el proceso de devolucion"}), 500
+        
     return jsonify(prestamo.to_dict()), 200
 
 @prestamos_bp.route('/mine', methods=['GET'])

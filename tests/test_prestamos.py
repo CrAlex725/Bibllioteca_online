@@ -88,7 +88,9 @@ def test_prestamos_get_filtro_is_active_valido(client,token_bibliotecario, prest
 def test_prestamos_get_filtro_vencidos_valido(client, app, token_bibliotecario, prestamos_de_prueba_admin):
     with app.app_context():
         prestamo = db.session.get(Prestamo, prestamos_de_prueba_admin)
-        prestamo.fecha_vencimiento = datetime.now(timezone.utc) - timedelta(days=5)
+        ahora = datetime.now(timezone.utc)
+        prestamo.fecha_prestamo = ahora - timedelta(days=20)
+        prestamo.fecha_vencimiento = ahora - timedelta(days=5)
         db.session.commit()
     
     resp = client.get('/prestamos', 
@@ -104,6 +106,7 @@ def test_prestamos_get_filtro_is_active_false(client, app, token_bibliotecario, 
     with app.app_context():
         prestamo = db.session.get(Prestamo, prestamos_de_prueba_admin)
         prestamo.is_active = False
+        prestamo.fecha_devolucion = datetime.now(timezone.utc)
         db.session.commit()
     
     resp = client.get('/prestamos', 
@@ -118,8 +121,12 @@ def test_prestamos_get_filtro_is_active_false(client, app, token_bibliotecario, 
 def test_prestamos_get_filtro_vencidos_false_no_filtra(client, token_bibliotecario, prestamos_de_prueba_admin):
         
     resp = client.get('/prestamos', 
-        query_string={"vencidos": "false"},
-        headers={"Authorization": f"Bearer {token_bibliotecario}"})
+        query_string={
+            "vencidos": "false"
+        },
+        headers={
+            "Authorization": f"Bearer {token_bibliotecario}"
+        })
     
     assert resp.status_code == 200
     data = resp.get_json()
@@ -532,12 +539,14 @@ def test_prestamos_post_destinatario_con_rol_no_permitido(
 
         # 3) Tres préstamos VENCIDOS del destinatario correcto
         for i in [1, 2, 3]:
+            ahora = datetime.now(timezone.utc)
             db.session.add(Prestamo(
                 ejemplar_id=exemplares_de_prueba[i]["id"],
                 usuario_id=us_id,
                 biblioteca_id=biblioteca_de_prueba["id"],
                 created_by=usuario_de_prueba_bibliotecario["id"],
-                fecha_vencimiento=datetime.now(timezone.utc) - timedelta(days=5),
+                fecha_prestamo=ahora - timedelta(days=20),
+                fecha_vencimiento=ahora - timedelta(days=5),
             ))
         db.session.commit()
 
@@ -803,8 +812,10 @@ def test_prestamos_post_id_devolver_usuario_sin_permiso(client, prestamos_de_pru
 def test_prestamos_post_id_devolver_prestamo_ya_devuelto(client, app, prestamos_de_prueba_bibliotecario, token_bibliotecario):
     with app.app_context():
         prest = db.session.get(Prestamo, prestamos_de_prueba_bibliotecario)
-        prest.fecha_prestamo = datetime.now(timezone.utc) - timedelta(days=5)
-        prest.fecha_devolucion = datetime.now(timezone.utc) - timedelta(days=2)
+        ahora = datetime.now(timezone.utc)
+        prest.fecha_prestamo = ahora - timedelta(days=5)
+        prest.fecha_devolucion = ahora - timedelta(days=2)
+        prest.is_active = False
         db.session.commit()
         
     resp = client.post(f'/prestamos/{prestamos_de_prueba_bibliotecario}/devolver',
@@ -859,4 +870,3 @@ def test_prestamos_post_id_devolver_correcto(client,
         })
     
     assert resp.status_code == 200
-    
