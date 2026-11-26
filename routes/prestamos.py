@@ -91,7 +91,7 @@ def crear_prestamo():
     if not creador:
         return jsonify({"error":"El usuario no existe"}), 401
     
-    ejemplar = Ejemplar.query.filter_by(id=ejemplar_id).first()
+    ejemplar = Ejemplar.query.filter_by(id=ejemplar_id).with_for_update().first()
     
     if not ejemplar:
         return jsonify({"error":"El ejemplar NO existe"}), 404
@@ -123,7 +123,7 @@ def crear_prestamo():
     usuario_destinatario = Usuario.query.filter(
         db.func.replace(db.func.replace(
             Usuario.rut, '-', ""),".","") == rut
-    ).first()
+    ).with_for_update().first()
     if not usuario_destinatario:
         return jsonify({"error":"El destinatario No existe"}), 404
     
