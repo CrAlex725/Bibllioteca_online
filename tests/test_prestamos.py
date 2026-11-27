@@ -650,8 +650,8 @@ def test_prestamos_post_integrity_error(
     # Restauramos el commit real antes de comprobar el estado de la BD
     monkeypatch.setattr(db.session, "commit", commit_real)
 
-    assert resp.status_code == 409
-    assert resp.get_json()["error"] == "Algo salió mal en la creacion del prestamo"
+    assert resp.status_code == 500
+    assert resp.get_json()["error"] == "Error de integridad en la base de datos"
     assert llamadas["n"] >= 1
 
     # Tras el rollback, ni el préstamo ni el cambio de estado persisten
@@ -664,6 +664,63 @@ def test_prestamos_post_integrity_error(
         estado_disponible = _Estado.query.filter(
             db.func.lower(_Estado.nombre) == "disponible"
         ).first()
+        assert ejemplar.estado_id == estado_disponible.id
+    
+def test_prestamos_post_integrity_conflict_ejemplar_activo(
+    client, app, usuario_de_prueba, token_bibliotecario, exemplares_de_prueba,
+    biblioteca_de_prueba, roles_de_prueba, monkeypatch
+):
+    from types import SimpleNamespace
+
+    with app.app_context():
+        db.session.add(Asignacion(
+            usuario_id=usuario_de_prueba["id"],
+            rol_id=roles_de_prueba["lector"],
+            biblioteca_id=biblioteca_de_prueba["id"],
+            is_owner=False,
+        ))
+        db.session.commit()
+
+    commit_real = db.session.commit
+    llamadas = {"n": 0}
+
+    def commit_que_falla(*args, **kwargs):
+        llamadas["n"] += 1
+
+        orig = SimpleNamespace(
+            diag=SimpleNamespace(
+                constraint_name="uq_prestamo_ejemplar_activo"
+            )
+        )
+
+        raise IntegrityError("stmt", {}, orig)
+
+    monkeypatch.setattr(db.session, "commit", commit_que_falla)
+
+    resp = client.post('/prestamos',
+        json={
+            "ejemplar_id": exemplares_de_prueba[1]["id"],
+            "rut": usuario_de_prueba["rut"],
+            "dias": "14"
+        },
+        headers={"Authorization": f"Bearer {token_bibliotecario}"})
+
+    monkeypatch.setattr(db.session, "commit", commit_real)
+
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "El ejemplar ya tiene un préstamo activo"
+    assert llamadas["n"] >= 1
+
+    with app.app_context():
+        assert Prestamo.query.count() == 0
+
+        ejemplar = db.session.get(Ejemplar, exemplares_de_prueba[1]["id"])
+
+        from models import Estado as _Estado
+        estado_disponible = _Estado.query.filter(
+            db.func.lower(_Estado.nombre) == "disponible"
+        ).first()
+
         assert ejemplar.estado_id == estado_disponible.id
     
 def test_prestamos_post_exitoso_con_dias(

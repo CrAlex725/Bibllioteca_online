@@ -181,9 +181,16 @@ def crear_prestamo():
         ejemplar.estado_id = estado_pendiente.id
         db.session.commit()
     
-    except IntegrityError:
+    except IntegrityError as error:
         db.session.rollback()
-        return jsonify({"error":"Algo salió mal en la creacion del prestamo"}), 409
+        
+        diag = getattr(error.orig, "diag", None)
+        constraint_name = getattr(diag, "constraint_name", None)
+        
+        if constraint_name == "uq_prestamo_ejemplar_activo":
+            return jsonify({"error":"El ejemplar ya tiene un préstamo activo"}), 409
+        
+        return jsonify({"error":"Error de integridad en la base de datos"}), 500
     
     return jsonify(prestamo.to_dict()), 201
 
